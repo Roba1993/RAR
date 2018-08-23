@@ -7,6 +7,7 @@ mod signature;
 mod header;
 mod archive;
 mod file;
+mod end;
 
 use std::io::Read;
 use failure::Error;
@@ -17,6 +18,7 @@ pub struct Archive {
     pub version: signature::RarSignature,
     pub details: archive::ArchiveBlock,
     pub files: Vec<file::File>,
+    pub end: end::EndBlock
 }
 
 impl Archive {
@@ -47,21 +49,17 @@ impl Archive {
             }
         }
         
-
+        // Get the end block
+        let (_, end) = end::end_block(input).map_err(|_| format_err!("Can't read RAR end"))?;
 
         Ok(Archive {
             version,
             details,
             files,
+            end
         })
     }
 }
-
-/// File representation from a rar archive
-pub struct File {
-    pub name: String,
-}
-
 
 #[cfg(test)]
 mod tests {

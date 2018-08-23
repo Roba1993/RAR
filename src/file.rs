@@ -2,7 +2,7 @@ use header::Header;
 use nom;
 use nom::be_u32;
 use header::header;
-use util::{get_bit_at, split_u64};
+use util::{get_bit_at, split_u64, to_bool};
 use vint::vint;
 
 
@@ -325,17 +325,4 @@ fn test_get_compression() {
     assert_eq!(get_compression(&[0x80, 0x00]), Ok((&[][..], c.clone())));
     assert_eq!(get_compression(&[0x80, 0x00, 0x00]), Ok((&[0x00][..], c)));
     assert!(get_compression(&[0x80]).is_err());
-}
-
-fn to_bool(i: u8) -> bool {
-    if i > 0 {
-        return true;
-    }
-    false
-}
-#[test]
-fn test_to_bool() {
-    assert_eq!(to_bool(0), false);
-    assert_eq!(to_bool(1), true);
-    assert_eq!(to_bool(10), true);
 }

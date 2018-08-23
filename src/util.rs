@@ -40,6 +40,19 @@ fn test_split_u64() {
     assert_eq!(split_u64(0x0F0F0F0F), [0x00, 0x00, 0x00, 0x00, 0x0F, 0x0F, 0x0F, 0x0F]);
 }
 
+pub fn to_bool(i: u8) -> bool {
+    if i > 0 {
+        return true;
+    }
+    false
+}
+#[test]
+fn test_to_bool() {
+    assert_eq!(to_bool(0), false);
+    assert_eq!(to_bool(1), true);
+    assert_eq!(to_bool(10), true);
+}
+
 /*
     let data = [
         0xF3, 0xE1, 0x82, 0xEB, 0x0B, 0x01, 0x05, 0x07,
