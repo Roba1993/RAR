@@ -8,6 +8,7 @@ mod header;
 mod archive;
 mod file;
 mod end;
+mod extractor;
 
 use std::io::Read;
 use failure::Error;
@@ -23,7 +24,22 @@ pub struct Archive {
 }
 
 impl Archive {
+    /// Opens an .rar file and tries to parse it's content.
+    /// This function returns an Archive with all the detailed information
+    /// about the .rar file.
     pub fn open<R: Read>(reader: &mut R) -> Result<Archive, Error> {
+        Archive::handle(reader, ExtractionOption::ExtractNone, "")
+    }
+
+    /// Extract all files of the .rar archive
+    pub fn extract_all<R: Read>(reader: &mut R, path: &str) -> Result<Archive, Error> {
+        Archive::handle(reader, ExtractionOption::ExtractAll, path)
+    }
+
+    /// Function to handle the .rar file in detail.
+    /// Most of the other functions available are 
+    /// easy to use abstraction of this function.
+    pub fn handle<R: Read>(reader: &mut R, ext: ExtractionOption, path: &str) -> Result<Archive, Error> {
         // initilize the buffer
         let mut buffer = vec!();
         reader.read_to_end(&mut buffer)?;
@@ -35,22 +51,28 @@ impl Archive {
         // try to parse the archive information
         let (mut input, details) = archive::archive(input).map_err(|_| format_err!("Can't read RAR archive"))?;
 
-        // get all files for this container
         let mut files = vec!();
         let mut quick_open = None;
-
+        // loop over the packages and define how to handle them
         loop {
+            // Check if it is a file
             match file::file(input) {
                 Ok((i, f)) => {
-                    input = &i[(f.unpacked_size as usize)..];
-
+                    // quick open file?
                     if f.name == "QO" {
+                        input = &i[(f.unpacked_size as usize)..];
                         quick_open = Some(f);
                         break;
                     }
-                    else {
-                        files.push(f);
+
+                    // extract the file?
+                    if ext == ExtractionOption::ExtractAll || ext == ExtractionOption::ExtractFile(f.name.clone()) {
+                        extractor::extract(f.clone(), path, &i[(.. f.unpacked_size as usize)])?;
                     }
+
+                    // push the curser foreward and the file to the array
+                    input = &i[(f.unpacked_size as usize)..];
+                    files.push(f);
                 },
                 Err(_) => {
                     break;
@@ -69,6 +91,14 @@ impl Archive {
             end
         })
     }
+}
+
+/// The different extraction options for the .rar file
+#[derive(PartialEq, Debug)]
+pub enum ExtractionOption {
+    ExtractNone,
+    ExtractAll,
+    ExtractFile(String)
 }
 
 #[cfg(test)]

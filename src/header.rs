@@ -5,7 +5,7 @@ use std::convert::From;
 use util::get_bit_at;
 
 /// general Header valid for all rar blocks
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Header {
     pub crc: u32,
     pub size: u64,
@@ -29,7 +29,7 @@ impl Header {
 }
 
 /// Definition of the header block typ
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Typ {
     MainArchive,
     File,
@@ -54,7 +54,7 @@ impl From<u64> for Typ {
 
 
 /// Flags for a header block
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Flags {
     pub extra_area: bool,   // Extra are is present in the end of header. 
     pub data_area: bool,    // Data area is present in the end of header. 

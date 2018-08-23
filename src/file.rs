@@ -7,7 +7,7 @@ use vint::vint;
 
 
 /// file header
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct File {
     pub head: Header,
     pub flags: FileFlags,
@@ -24,7 +24,7 @@ pub struct File {
 
 
 /// file flags
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct FileFlags {
     pub directory: bool,    // Directory file system object (file header only).
     pub time: bool,         // Time field in Unix format is present.
@@ -58,7 +58,7 @@ impl From<u64> for FileFlags {
 
 
 /// OS flags
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum OsFlags {
     WINDOWS,
     UNIX,
