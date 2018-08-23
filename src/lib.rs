@@ -18,6 +18,7 @@ pub struct Archive {
     pub version: signature::RarSignature,
     pub details: archive::ArchiveBlock,
     pub files: Vec<file::File>,
+    pub quick_open: Option<file::File>,
     pub end: end::EndBlock
 }
 
@@ -36,12 +37,20 @@ impl Archive {
 
         // get all files for this container
         let mut files = vec!();
+        let mut quick_open = None;
 
         loop {
             match file::file(input) {
                 Ok((i, f)) => {
                     input = &i[(f.unpacked_size as usize)..];
-                    files.push(f);
+
+                    if f.name == "QO" {
+                        quick_open = Some(f);
+                        break;
+                    }
+                    else {
+                        files.push(f);
+                    }
                 },
                 Err(_) => {
                     break;
@@ -56,6 +65,7 @@ impl Archive {
             version,
             details,
             files,
+            quick_open,
             end
         })
     }
@@ -87,5 +97,6 @@ mod tests {
         assert_eq!(archive.files[0].unpacked_size, 2149083);
         assert_eq!(archive.files[1].name, "text.txt");
         assert_eq!(archive.files[1].unpacked_size, 2118);
+        assert_eq!(archive.quick_open.unwrap().name, "QO");
     }
 }
