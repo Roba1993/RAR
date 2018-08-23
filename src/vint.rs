@@ -57,63 +57,6 @@ fn test_vint() {
     assert!(vint(&[0xFF, 0xFF]).is_err());
 }
 
-/// Returns the next complete vint number as u64 in a turned order.
-pub fn vint_t(input: &[u8]) -> nom::IResult<&[u8], u64> {
-    let mut out: u64 = 0;
-
-    // collect all u8 with a high bit
-    // if no high bit is available fail
-    match collect_vint(input) {
-        Ok(v) => {
-            // get just the data bit's from the collection
-            let coll = v.1.iter().map(|x| split_vint(x.clone()).1 as u64).collect::<Vec<u64>>();
-            let mut len = coll.len();
-
-            // loop over the collection to keep the order
-            // to push all the remaining bits to our vint
-            for i in coll.iter() {
-                out = out << 7;
-                out += i;        
-            }
-
-            // we starting from the back, so we take the last byte with is not part of
-            // the collection, because it has no high bit
-            if let Ok(f) = take_one(&input[len..]) {
-                out = out << 7;
-                out += split_vint(f.1[0]).1 as u64;
-            }
-            else {
-                return Err(nom::Err::Incomplete(nom::Needed::Size(1)));
-            }
-
-            // define the right the length to push the input foreward
-            len += 1;
-            return Ok((&input[len..], out));
-        },
-        // we only end the function early when there is not enough data
-        Err(e) => {
-            if e.is_incomplete() {
-                return Err(e);
-            }
-        }
-    }
-
-    // when no high bit is available, just
-    // take one u8 and give it back as u8
-    out = take_one(input)?.1[0] as u64;
-    Ok((&input[1..], out))
-}
-#[test]
-fn test_vint_t() {
-    assert_eq!(vint_t(&[0x01, 0xFF, 0x00]), Ok((&[0xFF, 0x00][..], 0x01)));
-    assert_eq!(vint_t(&[0xFF, 0x01, 0x00]), Ok((&[0x00][..], 0x3f81)));
-    assert_eq!(vint_t(&[0xFF, 0xFF, 0x00]), Ok((&[][..], 0x1fff80)));
-    assert_eq!(vint_t(&[0x80, 0xFF, 0x80, 0x00]), Ok((&[][..], 0x1fc000)));
-    assert_eq!(vint_t(&[0x80, 0xFF, 0x80, 0x00, 0x00]), Ok((&[0x00][..], 0x1fc000)));
-    assert!(vint_t(&[]).is_err());
-    assert!(vint_t(&[0xFF, 0xFF]).is_err());
-}
-
 /// Collect all vint which have a hight bit
 /// Failes if no bit is available or the array end's with a high bit
 named!(collect_vint(&[u8]) -> (&[u8]),

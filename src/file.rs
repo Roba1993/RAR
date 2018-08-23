@@ -3,7 +3,7 @@ use nom;
 use nom::be_u32;
 use header::header;
 use util::{get_bit_at, split_u64};
-use vint::{vint, vint_t};
+use vint::vint;
 
 
 /// file header
@@ -228,12 +228,12 @@ fn test_archive() {
         dictonary: 0
     };
 
-    let mut fileFlag = FileFlags::new();
-    fileFlag.crc = true;
+    let mut file_flag = FileFlags::new();
+    file_flag.crc = true;
 
     let mut arc = File {
         head: Header::new(2349697250, 36, ::header::Typ::File, flags),
-        flags: fileFlag,
+        flags: file_flag,
         unpacked_size: 2118,
         attributes: 32,
         mtime: 0,
@@ -267,12 +267,12 @@ fn test_archive_png() {
         dictonary: 0
     };
 
-    let mut fileFlag = FileFlags::new();
-    fileFlag.crc = true;
+    let mut file_flag = FileFlags::new();
+    file_flag.crc = true;
 
     let mut arc = File {
         head: Header::new(1002517598, 43, ::header::Typ::File, flags),
-        flags: fileFlag,
+        flags: file_flag,
         unpacked_size: 2149083,
         attributes: 32,
         mtime: 0,
