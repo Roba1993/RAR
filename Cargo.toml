@@ -7,3 +7,4 @@ authors = ["Robert Schütte <schuetterobert@gmail.com>"]
 nom = "4.0.0"
 failure = "0.1.1"
 lazy_static = "1.1.0"
+chrono = "0.4.5"

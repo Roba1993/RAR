@@ -1,6 +1,7 @@
 #[macro_use] extern crate failure;
 #[macro_use] extern crate nom;
 #[macro_use] extern crate lazy_static;
+extern crate chrono;
 
 mod util;
 mod vint;
@@ -8,7 +9,9 @@ mod signature;
 mod header;
 mod archive;
 mod file;
+mod extra;
 mod end;
+mod encryption;
 mod extractor;
 
 use std::io::Read;
@@ -45,12 +48,11 @@ impl Archive {
         let mut buffer = vec!();
         reader.read_to_end(&mut buffer)?;
         
-
         // try to parse the signature
         let (input, version) = signature::RarSignature::parse(&buffer).map_err(|_| format_err!("Can't read RAR signature"))?;
     
         // try to parse the archive information
-        let (mut input, details) = archive::archive(input).map_err(|_| format_err!("Can't read RAR archive"))?;
+        let (mut input, details) = archive::archive(input).map_err(|_| format_err!("Can't read RAR archive block"))?;
 
         let mut files = vec!();
         let mut quick_open = None;
@@ -163,5 +165,23 @@ mod tests {
         assert_eq!(*PHOTO, read_file("target/rar-test/rar5-save-32mb-txt-png/photo.jpg"));
 
         remove_dir_all("target/rar-test/rar5-save-32mb-txt-png/").unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn test_rar5_save_32mb_txt_png_pw_test() {
+        let mut file = File::open("assets/rar5-save-32mb-txt-png-pw-test.rar").unwrap();
+        let archive = Archive::extract_all(&mut file, "target/rar-test/rar5-save-32mb-txt-png-pw-test/").unwrap();
+
+        assert_eq!(archive.version, signature::RarSignature::RAR5);
+        assert_eq!(archive.files[0].name, "photo.jpg");
+        assert_eq!(archive.files[0].unpacked_size, 2149083);
+        assert_eq!(archive.files[1].name, "text.txt");
+        assert_eq!(archive.files[1].unpacked_size, 2118);
+        assert_eq!(archive.quick_open.unwrap().name, "QO");
+        assert_eq!(*TEXT, read_file("target/rar-test/rar5-save-32mb-txt-png-pw-test/text.txt"));
+        assert_eq!(*PHOTO, read_file("target/rar-test/rar5-save-32mb-txt-png-pw-test/photo.jpg"));
+
+        remove_dir_all("target/rar-test/rar5-save-32mb-txt-png-pw-test/").unwrap();
     }
 }
