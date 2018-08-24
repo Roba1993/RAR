@@ -1,5 +1,6 @@
 #[macro_use] extern crate failure;
 #[macro_use] extern crate nom;
+#[macro_use] extern crate lazy_static;
 
 mod util;
 mod vint;
@@ -103,24 +104,54 @@ pub enum ExtractionOption {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
+    use std::fs::{File, remove_dir_all};
+    use std::io::Read;
     use ::Archive;
     use ::signature;
 
+    // Small helper function to read a file
+    fn read_file(path: &str) -> Vec<u8> {
+        let mut data = vec!();
+        let mut file = File::open(path).unwrap();
+        file.read_to_end(&mut data).unwrap();
+        data
+    }
+
+    // Get the photo globally so that every test can compare it
+    lazy_static! {
+        static ref PHOTO: Vec<u8> = {
+            read_file("assets/photo.jpg")
+        };
+    }
+
+    // Get the photo globally so that every test can compare it
+    lazy_static! {
+        static ref TEXT: Vec<u8> = {
+            read_file("assets/text.txt")
+        };
+    }
+
+
+
     #[test]
     fn test_rar5_save_32mb_txt() {
-        let mut file = File::open("assets/rar5-save-32mb-txt.rar").unwrap();
-        let archive = Archive::open(&mut file).unwrap();
+        let rar = "rar5-save-32mb-txt";
+
+        let mut file = File::open(format!("assets/{}.rar", rar)).unwrap();
+        let archive = Archive::extract_all(&mut file, &format!("target/rar-test/{}/", rar)).unwrap();
         
         assert_eq!(archive.version, signature::RarSignature::RAR5);
         assert_eq!(archive.files[0].name, "text.txt");
         assert_eq!(archive.files[0].unpacked_size, 2118);
+        assert_eq!(*TEXT, read_file(&format!("target/rar-test/{}/text.txt", rar)));
+
+        remove_dir_all(&format!("target/rar-test/{}", rar)).unwrap();
     }
 
     #[test]
     fn test_rar5_save_32mb_txt_png() {
         let mut file = File::open("assets/rar5-save-32mb-txt-png.rar").unwrap();
-        let archive = Archive::open(&mut file).unwrap();
+        let archive = Archive::extract_all(&mut file, "target/rar-test/rar5-save-32mb-txt-png/").unwrap();
 
         assert_eq!(archive.version, signature::RarSignature::RAR5);
         assert_eq!(archive.files[0].name, "photo.jpg");
@@ -128,5 +159,9 @@ mod tests {
         assert_eq!(archive.files[1].name, "text.txt");
         assert_eq!(archive.files[1].unpacked_size, 2118);
         assert_eq!(archive.quick_open.unwrap().name, "QO");
+        assert_eq!(*TEXT, read_file("target/rar-test/rar5-save-32mb-txt-png/text.txt"));
+        assert_eq!(*PHOTO, read_file("target/rar-test/rar5-save-32mb-txt-png/photo.jpg"));
+
+        remove_dir_all("target/rar-test/rar5-save-32mb-txt-png/").unwrap();
     }
 }
