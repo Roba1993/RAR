@@ -63,18 +63,18 @@ impl Archive {
                 Ok((i, f)) => {
                     // quick open file?
                     if f.name == "QO" {
-                        input = &i[(f.unpacked_size as usize)..];
+                        input = &i[(f.head.data_area_size as usize)..];
                         quick_open = Some(f);
                         break;
                     }
 
                     // extract the file?
                     if ext == ExtractionOption::ExtractAll || ext == ExtractionOption::ExtractFile(f.name.clone()) {
-                        extractor::extract(f.clone(), path, &i[(.. f.unpacked_size as usize)])?;
+                        extractor::extract(f.clone(), path, &i[(.. f.head.data_area_size as usize)])?;
                     }
 
                     // push the curser foreward and the file to the array
-                    input = &i[(f.unpacked_size as usize)..];
+                    input = &i[(f.head.data_area_size as usize)..];
                     files.push(f);
                 },
                 Err(_) => {

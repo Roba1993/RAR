@@ -5,7 +5,6 @@ use header::header;
 use util::{get_bit_at, split_u64, to_bool};
 use vint::vint;
 use extra::ExtraAreaBlock;
-use chrono::naive::NaiveDateTime;
 
 /// file header
 #[derive(PartialEq, Debug, Clone)]
@@ -205,15 +204,17 @@ pub fn file(inp: &[u8]) -> nom::IResult<&[u8], File> {
     if file.head.flags.extra_area {
         // _ holds locator data - no processed right now
         let (i, extra) = take!(input, file.head.extra_area_size)?;
-        println!("\nEXTRA AREA: \n{:X?}\n", extra);
+        //println!("\nEXTRA AREA: \n{:X?}\n", extra);
         input = i;
-        file.extra = ::extra::parse_extra_area(extra)?.1;
+        file.extra = ExtraAreaBlock::parse(extra)?.1;
     }
 
     Ok((input, file))
 }
 #[test]
 fn test_archive() {
+    use chrono::naive::NaiveDateTime;
+
     // test a success case
     let data = [
         0x8C, 
@@ -240,10 +241,11 @@ fn test_archive() {
 
     let eab = ExtraAreaBlock {
         file_time: Some(::extra::FileTimeBlock {
-            modification_time: Some(NaiveDateTime::parse_from_str("2016-11-22 11:42:49", "%Y-%m-%d %H:%M:%S").unwrap()),
+            modification_time: Some(NaiveDateTime::parse_from_str("2018-05-23 10:02:11", "%Y-%m-%d %H:%M:%S").unwrap()),
             creation_time: None,
             access_time: None,
-        })
+        }),
+        file_encryption: None,
     };
 
     let mut arc = File {
@@ -265,6 +267,8 @@ fn test_archive() {
 }
 #[test]
 fn test_archive_png() {
+    use chrono::naive::NaiveDateTime;
+
     // test a success case
     let data = [0x3B, 0xC1, 0x34, 0x5E, 0x2B, 0x02, 0x03,   
         0x0B, 0xDB, 0x95, 0x83, 0x81, 0x00, 0x04, 0xDB, 0x95, 0x83, 0x81, 0x00, 0x20, 0x94, 0xB1, 0xA4,
@@ -286,51 +290,14 @@ fn test_archive_png() {
     let mut file_flag = FileFlags::new();
     file_flag.crc = true;
 
-    let mut arc = File {
-        head: Header::new(1002517598, 43, ::header::Typ::File, flags),
-        flags: file_flag,
-        unpacked_size: 2149083,
-        attributes: 32,
-        mtime: 0,
-        data_crc: 2494669946,
-        compression,
-        creation_os: OsFlags::WINDOWS,
-        name_len: 9,
-        name: "photo.jpg".into(),
-        extra: ExtraAreaBlock::default()
+    let eab = ExtraAreaBlock {
+        file_time: Some(::extra::FileTimeBlock {
+            modification_time: Some(NaiveDateTime::parse_from_str("2016-11-22 11:42:49", "%Y-%m-%d %H:%M:%S").unwrap()),
+            creation_time: None,
+            access_time: None,
+        }),
+        file_encryption: None,
     };
-    arc.head.extra_area_size = 11;
-    arc.head.data_area_size = 2149083;
-
-    assert_eq!(file(&data), Ok((&data[48..][..], arc)));
-}
-#[test]
-#[ignore]
-fn test_archive_png_pw() {
-    // test a success case
-    let data = [
-        0x7C, 0x43, 0x43, 0x68, 0x5C, 0x02, 0x03,   
-        0x3C, 0xE0, 0x95, 0x83, 0x81, 0x00, 0x04, 0xDB, 0x95, 0x83, 0x81, 0x00, 0x20, 0x17, 0x79, 0x1F,  
-        0xA3, 0x80, 0x00, 0x00, 0x09, 0x70, 0x68, 0x6F, 0x74, 0x6F, 0x2E, 0x6A, 0x70, 0x67, 0x30, 0x01,    
-        0x00, 0x03, 0x0F, 0x91, 0x36, 0x5C, 0xDE, 0x8E, 0x8E, 0x0D, 0x13, 0xFF, 0xBA, 0x80, 0xE9, 0x2B,  
-        0x5F, 0x08, 0x4A, 0x8D, 0x50, 0x37, 0xE8, 0xCD, 0xBE, 0x56, 0x7B, 0xCA, 0xC3, 0xFC, 0x77, 0x85,  
-        0x27, 0x7B, 0xBA, 0x08, 0xF2, 0xD8, 0xB3, 0x20, 0x71, 0x84, 0x52, 0x92, 0x19, 0x56, 0x11, 0x0A,   
-        0x03, 0x02, 0x9D, 0xA1, 0xE3, 0x8C, 0xB5, 0x44, 0xD2, 0x01, 0x83, 0x68, 0xA0, 0x16, 0x42, 0xDC,
-    ];
-
-    let mut flags = ::header::Flags::new();
-    flags.extra_area = true;
-    flags.data_area = true;
-
-    let compression = Compression {
-        version: 0,
-        solid: false,
-        flag: CompressionFlags::Save,
-        dictonary: 0
-    };
-
-    let mut file_flag = FileFlags::new();
-    file_flag.crc = true;
 
     let mut arc = File {
         head: Header::new(1002517598, 43, ::header::Typ::File, flags),
@@ -343,13 +310,14 @@ fn test_archive_png_pw() {
         creation_os: OsFlags::WINDOWS,
         name_len: 9,
         name: "photo.jpg".into(),
-        extra: ExtraAreaBlock::default()
+        extra: eab
     };
     arc.head.extra_area_size = 11;
     arc.head.data_area_size = 2149083;
 
     assert_eq!(file(&data), Ok((&data[48..][..], arc)));
 }
+
 
 /// get the compression info
 fn get_compression(inp: &[u8]) -> nom::IResult<&[u8], Compression> {
