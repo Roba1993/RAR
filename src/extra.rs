@@ -182,12 +182,12 @@ fn test_convert_time() {
 /// Information about the encrypted file.
 #[derive(PartialEq, Debug, Clone, Default)]
 pub struct FileEncryptionBlock {
-    version: FileEncryptionVersion,
-    flags: FileEncryptionBlockFlags,
-    kdf_count: u8,
-    salt: [u8; 16],
-    init: [u8; 16],
-    pw_check: [u8; 12],
+    pub version: FileEncryptionVersion,
+    pub flags: FileEncryptionBlockFlags,
+    pub kdf_count: u8,
+    pub salt: [u8; 16],
+    pub init: [u8; 16],
+    pub pw_check: [u8; 12],
 }
 
 impl FileEncryptionBlock {

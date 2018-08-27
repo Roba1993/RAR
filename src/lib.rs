@@ -2,6 +2,7 @@
 #[macro_use] extern crate nom;
 #[macro_use] extern crate lazy_static;
 extern crate chrono;
+extern crate crypto;
 
 mod util;
 mod vint;
@@ -11,7 +12,7 @@ mod archive;
 mod file;
 mod extra;
 mod end;
-mod encryption;
+mod decryptor;
 mod extractor;
 
 use std::io::Read;
@@ -168,7 +169,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    //#[ignore]
     fn test_rar5_save_32mb_txt_png_pw_test() {
         let mut file = File::open("assets/rar5-save-32mb-txt-png-pw-test.rar").unwrap();
         let archive = Archive::extract_all(&mut file, "target/rar-test/rar5-save-32mb-txt-png-pw-test/").unwrap();
