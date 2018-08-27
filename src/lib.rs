@@ -1,9 +1,12 @@
+#![feature(bufreader_buffer)]
+
 #[macro_use] extern crate failure;
 #[macro_use] extern crate nom;
 #[macro_use] extern crate lazy_static;
 extern crate chrono;
 extern crate crypto;
 
+mod buffer;
 mod util;
 mod vint;
 mod signature;
@@ -169,7 +172,8 @@ mod tests {
     }
 
     #[test]
-    //#[ignore]
+    // this test takes a while right now
+    #[ignore]
     fn test_rar5_save_32mb_txt_png_pw_test() {
         let mut file = File::open("assets/rar5-save-32mb-txt-png-pw-test.rar").unwrap();
         let archive = Archive::extract_all(&mut file, "target/rar-test/rar5-save-32mb-txt-png-pw-test/").unwrap();

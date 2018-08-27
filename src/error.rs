@@ -1,4 +1,4 @@
-#[derive(Debug, Fail)]
+#[derive(Debug, Fail, PartialEq)]
 enum RarError {
     #[fail(display = "invalid toolchain name: {}", name)]
     InvalidToolchainName {
