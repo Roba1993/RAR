@@ -7,7 +7,7 @@ use vint::vint;
 use extra::ExtraAreaBlock;
 
 /// file header
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub struct File {
     pub head: Header,
     pub flags: FileFlags,
@@ -25,7 +25,7 @@ pub struct File {
 
 
 /// file flags
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub struct FileFlags {
     pub directory: bool,    // Directory file system object (file header only).
     pub time: bool,         // Time field in Unix format is present.
@@ -74,9 +74,15 @@ impl From<u64> for OsFlags {
     }
 }
 
+impl Default for OsFlags {
+    fn default() -> OsFlags {
+        OsFlags::UNKNOWN
+    }
+}
+
 
 /// Compression dataset
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub struct Compression {
     pub version: u8,
     pub solid: bool,
@@ -127,6 +133,12 @@ impl From<u8> for CompressionFlags {
         if i == 3 { return CompressionFlags::Normal }
         if i == 4 { return CompressionFlags::Good }
         if i == 5 { return CompressionFlags::Best }
+        CompressionFlags::Unknown
+    }
+}
+
+impl Default for CompressionFlags {
+    fn default() -> CompressionFlags {
         CompressionFlags::Unknown
     }
 }

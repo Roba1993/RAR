@@ -5,7 +5,7 @@ use std::convert::From;
 use util::get_bit_at;
 
 /// general Header valid for all rar blocks
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub struct Header {
     pub crc: u32,
     pub size: u64,
@@ -52,9 +52,15 @@ impl From<u64> for Typ {
     }
 }
 
+impl Default for Typ {
+    fn default() -> Typ {
+        Typ::Unknown
+    }
+}
+
 
 /// Flags for a header block
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub struct Flags {
     pub extra_area: bool,   // Extra are is present in the end of header. 
     pub data_area: bool,    // Data area is present in the end of header. 

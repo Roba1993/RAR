@@ -1,4 +1,5 @@
 #![feature(bufreader_buffer)]
+#![feature(bufreader_seek_relative)]
 
 #[macro_use] extern crate failure;
 #[macro_use] extern crate nom;
@@ -15,10 +16,11 @@ mod archive;
 mod file;
 mod extra;
 mod end;
-mod decryptor;
+mod decryption_reader;
 mod extractor;
+mod file_writer;
 
-use std::io::Read;
+use std::io::{Read, Seek};
 use failure::Error;
 
 /// The rar archive representation
@@ -35,50 +37,47 @@ impl Archive {
     /// Opens an .rar file and tries to parse it's content.
     /// This function returns an Archive with all the detailed information
     /// about the .rar file.
-    pub fn open<R: Read>(reader: &mut R) -> Result<Archive, Error> {
+    pub fn open<R: Read + Seek>(reader: &mut R) -> Result<Archive, Error> {
         Archive::handle(reader, ExtractionOption::ExtractNone, "")
     }
 
     /// Extract all files of the .rar archive
-    pub fn extract_all<R: Read>(reader: &mut R, path: &str) -> Result<Archive, Error> {
+    pub fn extract_all<R: Read + Seek>(reader: &mut R, path: &str) -> Result<Archive, Error> {
         Archive::handle(reader, ExtractionOption::ExtractAll, path)
     }
 
     /// Function to handle the .rar file in detail.
     /// Most of the other functions available are 
     /// easy to use abstraction of this function.
-    pub fn handle<R: Read>(reader: &mut R, ext: ExtractionOption, path: &str) -> Result<Archive, Error> {
+    pub fn handle<R: Read + Seek>(reader: &mut R, ext: ExtractionOption, path: &str) -> Result<Archive, Error> {
         // initilize the buffer
-        let mut buffer = vec!();
-        reader.read_to_end(&mut buffer)?;
-        
+        let mut buffer = buffer::DataBuffer::new(reader);
+
         // try to parse the signature
-        let (input, version) = signature::RarSignature::parse(&buffer).map_err(|_| format_err!("Can't read RAR signature"))?;
-    
+        let version = buffer.exec_nom_parser(signature::RarSignature::parse).map_err(|_| format_err!("Can't read RAR signature"))?;
         // try to parse the archive information
-        let (mut input, details) = archive::archive(input).map_err(|_| format_err!("Can't read RAR archive block"))?;
+        let details = buffer.exec_nom_parser(archive::archive).map_err(|_| format_err!("Can't read RAR archive block"))?;
 
         let mut files = vec!();
         let mut quick_open = None;
         // loop over the packages and define how to handle them
         loop {
             // Check if it is a file
-            match file::file(input) {
-                Ok((i, f)) => {
+            match buffer.exec_nom_parser(file::file) {
+                Ok(f) => {
                     // quick open file?
                     if f.name == "QO" {
-                        input = &i[(f.head.data_area_size as usize)..];
+                        buffer.seek(f.head.data_area_size as i64)?;
                         quick_open = Some(f);
                         break;
                     }
 
                     // extract the file?
                     if ext == ExtractionOption::ExtractAll || ext == ExtractionOption::ExtractFile(f.name.clone()) {
-                        extractor::extract(f.clone(), path, &i[(.. f.head.data_area_size as usize)])?;
+                        extractor::extract(&f, path, &mut buffer)?;
                     }
 
-                    // push the curser foreward and the file to the array
-                    input = &i[(f.head.data_area_size as usize)..];
+                    // add the file to the array
                     files.push(f);
                 },
                 Err(_) => {
@@ -86,9 +85,9 @@ impl Archive {
                 }
             }
         }
-        
+
         // Get the end block
-        let (_, end) = end::end_block(input).map_err(|_| format_err!("Can't read RAR end"))?;
+        let end = buffer.exec_nom_parser(end::end_block).map_err(|_| format_err!("Can't read RAR end"))?;
 
         Ok(Archive {
             version,
@@ -140,7 +139,7 @@ mod tests {
 
 
     #[test]
-    fn test_rar5_save_32mb_txt() {
+    fn test_rar5_save_32mb_txt_1() {
         let rar = "rar5-save-32mb-txt";
 
         let mut file = File::open(format!("assets/{}.rar", rar)).unwrap();
@@ -155,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rar5_save_32mb_txt_png() {
+    fn test_rar5_save_32mb_txt_png_2() {
         let mut file = File::open("assets/rar5-save-32mb-txt-png.rar").unwrap();
         let archive = Archive::extract_all(&mut file, "target/rar-test/rar5-save-32mb-txt-png/").unwrap();
 
@@ -174,7 +173,7 @@ mod tests {
     #[test]
     // this test takes a while right now
     #[ignore]
-    fn test_rar5_save_32mb_txt_png_pw_test() {
+    fn test_rar5_save_32mb_txt_png_pw_test_3() {
         let mut file = File::open("assets/rar5-save-32mb-txt-png-pw-test.rar").unwrap();
         let archive = Archive::extract_all(&mut file, "target/rar-test/rar5-save-32mb-txt-png-pw-test/").unwrap();
 
