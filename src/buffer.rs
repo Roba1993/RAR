@@ -1,7 +1,7 @@
 use failure;
 use nom;
 use std::io;
-use std::io::{BufRead, BufReader, Read, Cursor};
+use std::io::{BufRead, BufReader, Read};
 
 
 pub struct DataBuffer<'a> {
@@ -19,12 +19,6 @@ impl<'a> DataBuffer<'a>{
     pub fn new_from_file(file: ::std::fs::File) -> DataBuffer<'a> {
         DataBuffer {
             inner: Box::new(BufReader::new(file)),
-        }
-    }
-
-    pub fn new_from_read<R: Read + ::std::convert::AsRef<[u8]> + 'a>(r: R) -> DataBuffer<'a> {
-        DataBuffer {
-            inner: Box::new(Cursor::new(r)),
         }
     }
 
