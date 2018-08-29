@@ -1,29 +1,65 @@
 use failure;
 use nom;
 use std::io;
-use std::io::{BufRead, BufReader, Read, Seek};
+use std::io::{BufRead, BufReader, Read, Seek, Cursor};
 
-pub struct DataBuffer<R> {
-    inner: BufReader<R>,
+
+pub struct DataBuffer<'a> {
+    inner: Box<BufRead + 'a>,
 }
 
-impl<R: Read + Seek> DataBuffer<R> {
-    pub fn new(r: R) -> DataBuffer<R> {
+
+impl<'a> DataBuffer<'a>{
+    pub fn new<R: BufRead + 'a>(r: R) -> DataBuffer<'a> {
         DataBuffer {
-            inner: BufReader::new(r),
+            inner: Box::new(r),
         }
     }
 
-    /// Returns a reference to the internally buffered data.
-    /// Unlike fill_buf, this will not attempt to fill the buffer if it is empty.
-    pub fn buffer(&self) -> &[u8] {
-        self.inner.buffer()
+    pub fn new_from_file(file: ::std::fs::File) -> DataBuffer<'a> {
+        DataBuffer {
+            inner: Box::new(BufReader::new(file)),
+        }
+    }
+
+    pub fn new_from_read<R: Read + ::std::convert::AsRef<[u8]> + 'a>(r: R) -> DataBuffer<'a> {
+        DataBuffer {
+            inner: Box::new(Cursor::new(r)),
+        }
+    }
+
+    /// Fills the buffer and returns the content
+    pub fn fill_buf(&mut self) -> Result<&[u8], io::Error> {
+        self.inner.fill_buf()
     }
 
     /// Tells this buffer that amt bytes have been consumed from the buffer, 
     /// so they should no longer be returned in calls to read.
-    pub fn seek(&mut self, amt: i64) -> Result<(), io::Error> {
-        self.inner.seek_relative(amt)
+    /// 
+    /// Only the buffer is effected, can't push more foreward than the buffer
+    pub fn consume(&mut self, amt: usize) {
+        self.inner.consume(amt)
+    }
+
+    /// Seeks the reader forward -> right now it's a reading
+    /// which is not really performant....
+    pub fn seek(&mut self, amt: u64) -> Result<(), io::Error> {
+        let mut amt = amt;
+        let mut buf = [0u8; 8000];
+
+        while amt > 0 {
+            let mut len = buf.len();
+
+            // when the buffer is smaller than the need to seek shrink to buffer size
+            if buf.len() > amt as usize {
+                len = amt as usize;
+            }
+
+            self.inner.read_exact(&mut buf[..len])?;
+            amt -= len as u64;
+        }
+
+        Ok(())
     }
 
     /// This function executes a nom parser against the data of the buffer.
@@ -35,47 +71,39 @@ impl<R: Read + Seek> DataBuffer<R> {
         // using the inner bufreader
         enum Stati<D> {
             Error,
-            Incomplete,
             Success(usize, D),
         }
 
         // execute the nom command against the buffer content
         // and match the outcome to the local stati enum
         let res;
-        match func(self.inner.buffer()) {
-            Ok((bl, d)) => {
-                res = Stati::Success(bl.len(), d);
-            }
-            Err(e) => match e {
-                nom::Err::Incomplete(_) => {
-                    res = Stati::Incomplete;
+        let buf_len;
+        {
+            let buf = self.fill_buf()?;
+            buf_len = buf.len();
+            match func(buf) {
+                Ok((bl, d)) => {
+                    res = Stati::Success(bl.len(), d);
                 }
-                _ => {
+                Err(e) => {
                     res = Stati::Error;
                 }
-            },
+            }
         }
 
-        // based upon the local stati, perform the right action
         match res {
             // on error return an error
             Stati::Error => Err(format_err!("Can't execute nom parser")),
-            // on incomplete, refill the buffer and try again
-            Stati::Incomplete => {
-                self.inner.fill_buf()?;
-                self.exec_nom_parser(func)
-            }
             // on sucess resize the buffer and return the result
             Stati::Success(bl, d) => {
-                let l = self.inner.buffer().len();
-                self.seek((l - bl) as i64)?;
+                self.consume((buf_len - bl) );
                 Ok(d)
             }
         }
     }
 }
 
-impl<R: Read> Read for DataBuffer<R> {
+impl<'a> Read for DataBuffer<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
         self.inner.read(buf)
     }
@@ -89,19 +117,23 @@ fn test_exec_nom_parser() {
     let mut db = DataBuffer::new(::std::io::Cursor::new(data));
 
     assert!(db.exec_nom_parser(::signature::RarSignature::parse).is_ok());
-    assert_eq!(db.buffer(), &data[8..]);
+    assert_eq!(db.fill_buf().unwrap(), &data[8..]);
+}
+#[test]
+fn test_consume() {
+    let data = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00, 0xFF, 0xFF, 0xFF];
+
+    let mut db = DataBuffer::new(::std::io::Cursor::new(data));
+
+    db.consume(8);
+    assert_eq!(db.fill_buf().unwrap(), &data[8..]);
 }
 #[test]
 fn test_seek() {
     let data = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00, 0xFF, 0xFF, 0xFF];
 
     let mut db = DataBuffer::new(::std::io::Cursor::new(data));
-    let mut tmp1 = [0u8; 2];
-    assert_eq!(db.read(&mut tmp1).unwrap(), 2);
 
-    db.seek(-2).unwrap();
-    let mut tmp2 = [0u8; 2];
-    assert_eq!(db.read(&mut tmp2).unwrap(), 2);
-
-    assert_eq!(tmp1, tmp2);
+    db.consume(8);
+    assert_eq!(db.fill_buf().unwrap(), &data[8..]);
 }

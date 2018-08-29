@@ -5,7 +5,7 @@ use util::to_bool;
 use vint::vint;
 
 /// Archive header
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Default)]
 pub struct EndBlock {
     pub head: Header,
     pub last_volume: bool,

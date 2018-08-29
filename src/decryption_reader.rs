@@ -10,7 +10,6 @@ use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
 use extra::FileEncryptionBlock;
 use file::File;
 
-const BUFFER_SIZE: usize = 8192;
 
 /// RAR Decryption reader to decrypt encrypted files
 ///
@@ -56,32 +55,9 @@ impl<R: Read> RarAesReader<R> {
         }
     }
 
-    /// Creates a new AesReader.
-    ///
-    /// Assumes that the first block of given reader is the IV.
-    ///
-    /// # Parameters
-    ///
-    /// * **reader**: Reader to read encrypted data from
-    /// * **dec**: [`BlockDecryptor`][bd] to use for decyrption
-    ///
-    ///
-    /// [bd]: https://docs.rs/rust-crypto/0.2.36/crypto/symmetriccipher/trait.BlockDecryptor.html
-    /*pub fn new(mut reader: R, dec: D) -> Result<AesReader<D, R>> {
-        let mut iv = vec![0u8; dec.block_size()];
-        reader.read_exact(&mut iv)?;
-        Ok(AesReader {
-            reader: reader,
-            block_size: dec.block_size(),
-            dec: CbcDecryptor::new(dec, PkcsPadding, iv),
-            buffer: Vec::new(),
-            eof: false,
-        })
-    }*/
-
     /// Reads at max BUFFER_SIZE bytes, handles potential eof and returns the buffer as Vec<u8>
     fn fill_buf(&mut self) -> Result<Vec<u8>> {
-        let mut eof_buffer = vec![0u8; BUFFER_SIZE];
+        let mut eof_buffer = vec![0u8; ::BUFFER_SIZE];
         let read = self.reader.read(&mut eof_buffer)?;
         self.eof = read == 0;
         eof_buffer.truncate(read);
