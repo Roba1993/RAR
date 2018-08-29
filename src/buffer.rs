@@ -1,7 +1,7 @@
 use failure;
 use nom;
 use std::io;
-use std::io::{BufRead, BufReader, Read, Seek, Cursor};
+use std::io::{BufRead, BufReader, Read, Cursor};
 
 
 pub struct DataBuffer<'a> {
@@ -26,19 +26,6 @@ impl<'a> DataBuffer<'a>{
         DataBuffer {
             inner: Box::new(Cursor::new(r)),
         }
-    }
-
-    /// Fills the buffer and returns the content
-    pub fn fill_buf(&mut self) -> Result<&[u8], io::Error> {
-        self.inner.fill_buf()
-    }
-
-    /// Tells this buffer that amt bytes have been consumed from the buffer, 
-    /// so they should no longer be returned in calls to read.
-    /// 
-    /// Only the buffer is effected, can't push more foreward than the buffer
-    pub fn consume(&mut self, amt: usize) {
-        self.inner.consume(amt)
     }
 
     /// Seeks the reader forward -> right now it's a reading
@@ -85,7 +72,7 @@ impl<'a> DataBuffer<'a>{
                 Ok((bl, d)) => {
                     res = Stati::Success(bl.len(), d);
                 }
-                Err(e) => {
+                Err(_) => {
                     res = Stati::Error;
                 }
             }
@@ -96,7 +83,7 @@ impl<'a> DataBuffer<'a>{
             Stati::Error => Err(format_err!("Can't execute nom parser")),
             // on sucess resize the buffer and return the result
             Stati::Success(bl, d) => {
-                self.consume((buf_len - bl) );
+                self.consume(buf_len - bl);
                 Ok(d)
             }
         }
@@ -108,6 +95,21 @@ impl<'a> Read for DataBuffer<'a> {
         self.inner.read(buf)
     }
 
+}
+
+impl<'a> BufRead for DataBuffer<'a> {
+    /// Fills the buffer and returns the content
+    fn fill_buf(&mut self) -> Result<&[u8], io::Error> {
+        self.inner.fill_buf()
+    }
+
+    /// Tells this buffer that amt bytes have been consumed from the buffer, 
+    /// so they should no longer be returned in calls to read.
+    /// 
+    /// Only the buffer is effected, can't push more foreward than the buffer
+    fn consume(&mut self, amt: usize) {
+        self.inner.consume(amt)
+    }
 }
 
 #[test]

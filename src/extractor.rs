@@ -4,7 +4,7 @@ use failure::Error;
 use file;
 use file_writer::FileWriter;
 use std::io::prelude::*;
-use std::io::{Read, Seek, Chain};
+use std::io::{Read};
 
 pub fn extract(
     file: &file::File,

@@ -1,6 +1,3 @@
-#![feature(bufreader_buffer)]
-#![feature(bufreader_seek_relative)]
-
 #[macro_use]
 extern crate failure;
 #[macro_use]
@@ -68,7 +65,7 @@ impl Archive {
     ) -> Result<Archive, Error> {
         let file_name = file_name.into();
         // Open a file reader
-        let mut reader = File::open(&file_name)?;
+        let reader = File::open(&file_name)?;
         // initilize the buffer
         let mut buffer = buffer::DataBuffer::new_from_file(reader);
 
@@ -90,7 +87,7 @@ impl Archive {
                 Ok(mut f) => {
                     // quick open file?
                     if f.name == "QO" {
-                        buffer.seek(f.head.data_area_size);
+                        buffer.seek(f.head.data_area_size)?;
                         quick_open = Some(f);
                         break;
                     }
@@ -113,7 +110,7 @@ impl Archive {
                     {
                         extractor::extract(&f, path, &file_name, &mut buffer)?;
                     } else {
-                        buffer.seek(f.head.data_area_size);
+                        buffer.seek(f.head.data_area_size)?;
                     }
 
                     // add the file to the array
