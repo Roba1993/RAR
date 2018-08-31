@@ -7,11 +7,10 @@ use crypto::sha2::Sha256;
 use crypto::symmetriccipher::{BlockDecryptor, Decryptor};
 use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
 
-use extra::FileEncryptionBlock;
-use file::File;
+use extra_block::FileEncryptionBlock;
+use file_block::FileBlock;
 
-
-/// RAR Decryption reader to decrypt encrypted files
+/// RAR Decryption reader to decrypt .rar archive files
 ///
 /// Original source-code: https://docs.rs/aes-stream/0.2.1/aesstream/
 pub struct RarAesReader<R: Read> {
@@ -30,7 +29,8 @@ pub struct RarAesReader<R: Read> {
 }
 
 impl<R: Read> RarAesReader<R> {
-    pub fn new(reader: R, file: File, pwd: &str) -> RarAesReader<R> {
+    /// Create a new decryption reader
+    pub fn new(reader: R, file: FileBlock, pwd: &str) -> RarAesReader<R> {
         let mut key = [0u8; 32];
         let mut active = false;
         let mut feb = FileEncryptionBlock::default();

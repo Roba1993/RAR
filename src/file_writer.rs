@@ -1,16 +1,18 @@
 use std::fs;
-use file;
+use file_block::FileBlock;
 use std::io::{BufWriter, Write, Result};
 
-
+/// This FileWriter writes out the data into a new
+/// file underneath the given path
 pub struct FileWriter {
-    file: ::file::File,
+    file: FileBlock,
     writer: BufWriter<fs::File>,
     bytes_written: u64,
 }
 
 impl FileWriter {
-    pub fn new(file: file::File, path: &str) -> Result<FileWriter> {
+    /// Create a new FileWriter to write the data
+    pub fn new(file: FileBlock, path: &str) -> Result<FileWriter> {
         // create the file and the path
         fs::create_dir_all(path)?;
 
@@ -27,6 +29,7 @@ impl FileWriter {
 }
 
 impl Write for FileWriter {
+    /// Write the data into the file
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         // calculate the length which still needs to be written
         let mut len = (self.file.unpacked_size - self.bytes_written) as usize;
@@ -50,12 +53,6 @@ impl Write for FileWriter {
         self.writer.flush()
     }
 }
-
-#[test]
-fn test_file_writer() {
-
-}
-
 
 #[cfg(test)]
 mod tests {

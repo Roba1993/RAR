@@ -1,17 +1,24 @@
-use buffer::DataBuffer;
-use decryption_reader::RarAesReader;
+use aes_reader::RarAesReader;
 use failure::Error;
-use file;
+use file_block::FileBlock;
 use file_writer::FileWriter;
+use rar_reader::RarReader;
 use std::io::prelude::*;
 use std::io::Read;
 
-pub fn extract(file: &file::File, path: &str, buffer: &mut DataBuffer, data_area_size: u64, password: &str) -> Result<(), Error> {
+/// This function extracts the data from a RarReader and writes it into an file.
+pub fn extract(
+    file: &FileBlock,
+    path: &str,
+    buffer: &mut RarReader,
+    data_area_size: u64,
+    password: &str,
+) -> Result<(), Error> {
     // create file writer to create and fill the file
     let mut f_writer = FileWriter::new(file.clone(), &path)?;
 
     // Limit the data to take from the reader
-    let buffer = DataBuffer::new(buffer.take(data_area_size));
+    let buffer = RarReader::new(buffer.take(data_area_size));
 
     // Initilize the decryption reader
     let mut buffer = RarAesReader::new(buffer, file.clone(), password);
@@ -48,13 +55,16 @@ pub fn extract(file: &file::File, path: &str, buffer: &mut DataBuffer, data_area
     Ok(())
 }
 
+/// This function chains a new .rar archive file to the data stream.
+/// This ensures that we can build up a big chained reader which holds the complete
+/// data_area, which then can be extracted.
 pub fn continue_data_next_file<'a>(
-    buffer: DataBuffer<'a>,
-    file: &mut file::File,
+    buffer: RarReader<'a>,
+    file: &mut FileBlock,
     file_name: &str,
     file_number: &mut usize,
     data_area_size: &mut u64,
-) -> Result<DataBuffer<'a>, Error> {
+) -> Result<RarReader<'a>, Error> {
     // get the next rar file name
     let mut new_file_name = file_name.to_string();
     let len = new_file_name.len();
@@ -64,7 +74,7 @@ pub fn continue_data_next_file<'a>(
     let reader = ::std::fs::File::open(&new_file_name)?;
 
     // put the reader into our buffer
-    let mut new_buffer = DataBuffer::new_from_file(reader);
+    let mut new_buffer = RarReader::new_from_file(reader);
 
     // try to parse the signature
     let version = new_buffer
@@ -72,11 +82,11 @@ pub fn continue_data_next_file<'a>(
         .map_err(|_| format_err!("Can't read RAR signature"))?;
     // try to parse the archive information
     let details = new_buffer
-        .exec_nom_parser(::archive::archive)
+        .exec_nom_parser(::archive_block::ArchiveBlock::parse)
         .map_err(|_| format_err!("Can't read RAR archive block"))?;
     // try to parse the file
     let new_file = new_buffer
-        .exec_nom_parser(file::file)
+        .exec_nom_parser(FileBlock::parse)
         .map_err(|_| format_err!("Can't read RAR file block"))?;
 
     // check if the next file info is the same as from prvious .rar
@@ -89,9 +99,10 @@ pub fn continue_data_next_file<'a>(
         ));
     }
 
-    // Limit the data to take from the reader, when files are following
+    // Limit the data to take from the reader, when this data area
+    // continues in another .rar archive file
     if new_file.head.flags.data_next {
-        new_buffer = DataBuffer::new(new_buffer.take(new_file.head.data_area_size));
+        new_buffer = RarReader::new(new_buffer.take(new_file.head.data_area_size));
     }
 
     // count file number up
@@ -104,5 +115,5 @@ pub fn continue_data_next_file<'a>(
     *file = new_file;
 
     // chain the buffer together
-    Ok(DataBuffer::new(buffer.chain(new_buffer)))
+    Ok(RarReader::new(buffer.chain(new_buffer)))
 }
