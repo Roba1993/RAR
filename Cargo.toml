@@ -9,6 +9,9 @@ homepage = "https://github.com/Roba1993/RAR"
 description = """
 Rust native RAR extractor based upon nom
 """
+exclude = [
+    "assets/*",
+]
 
 [dependencies]
 nom = "4.0.0"
