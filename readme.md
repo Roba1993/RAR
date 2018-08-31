@@ -1,4 +1,4 @@
-# Rust RAR
+# RAR Rust
 This crate provides a Rust native functionality to list and extract RAR files (Right now with limited functionality!)
 
 Please have a look in the test section of the file `src/lib.rs` to see in detail which features are supported right now and how to use this crate.
