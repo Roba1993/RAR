@@ -210,7 +210,7 @@ fn generate_key(feb: &FileEncryptionBlock, pwd: &str) -> [u8; 32] {
 
 #[test]
 fn test_aes_stream_disabled() {
-    let f = File::default();
+    let f = FileBlock::default();
     let data = [
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10,
     ];

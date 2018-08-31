@@ -1,7 +1,6 @@
-use header::Header;
+use head_block::HeadBlock;
 use nom;
 use nom::be_u32;
-use header::header;
 use util::{get_bit_at, split_u64, to_bool};
 use vint::vint;
 use extra_block::ExtraAreaBlock;
@@ -9,7 +8,7 @@ use extra_block::ExtraAreaBlock;
 /// FileBlock 
 #[derive(PartialEq, Debug, Clone, Default)]
 pub struct FileBlock {
-    pub head: Header,
+    pub head: HeadBlock,
     pub flags: FileFlags,
     pub unpacked_size: u64,
     pub attributes: u64,
@@ -26,10 +25,10 @@ impl FileBlock {
     /// Parse an byte slice an returns a FileBlock.
     pub fn parse(inp: &[u8]) -> nom::IResult<&[u8], FileBlock> {
         // get the base header
-        let (input, head) = header(inp)?;
+        let (input, head) = HeadBlock::parse(inp)?;
 
         // check if the defined type is archive header
-        if head.typ != ::header::Typ::File && head.typ != ::header::Typ::Service {
+        if head.typ != ::head_block::Typ::File && head.typ != ::head_block::Typ::Service {
             return Err(nom::Err::Error(error_position!(inp, nom::ErrorKind::IsNot)));
         }
 
@@ -116,7 +115,7 @@ fn test_archive() {
         0x7D, 0xF2, 0xD3, 0x01, 0x46, 0x61, 0x72, 0x20, 0x66 
     ];
 
-    let mut flags = ::header::Flags::new();
+    let mut flags = ::head_block::Flags::new();
     flags.extra_area = true;
     flags.data_area = true;
 
@@ -127,11 +126,11 @@ fn test_archive() {
         dictonary: 0
     };
 
-    let mut file_flag = FileFlags::new();
+    let mut file_flag = FileFlags::default();
     file_flag.crc = true;
 
     let eab = ExtraAreaBlock {
-        file_time: Some(::extra::FileTimeBlock {
+        file_time: Some(::extra_block::FileTimeBlock {
             modification_time: Some(NaiveDateTime::parse_from_str("2018-05-23 10:02:11", "%Y-%m-%d %H:%M:%S").unwrap()),
             creation_time: None,
             access_time: None,
@@ -139,8 +138,8 @@ fn test_archive() {
         file_encryption: None,
     };
 
-    let mut arc = File {
-        head: Header::new(2349697250, 36, ::header::Typ::File, flags),
+    let mut arc = FileBlock {
+        head: HeadBlock::new(2349697250, 36, ::head_block::Typ::File, flags),
         flags: file_flag,
         unpacked_size: 2118,
         attributes: 32,
@@ -167,7 +166,7 @@ fn test_archive_png() {
         0x02, 0x9D, 0xA1, 0xE3, 0x8C, 0xB5, 0x44, 0xD2, 0x01, 0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x18, 0x45,
     ];
 
-    let mut flags = ::header::Flags::new();
+    let mut flags = ::head_block::Flags::new();
     flags.extra_area = true;
     flags.data_area = true;
 
@@ -178,11 +177,11 @@ fn test_archive_png() {
         dictonary: 0
     };
 
-    let mut file_flag = FileFlags::new();
+    let mut file_flag = FileFlags::default();
     file_flag.crc = true;
 
     let eab = ExtraAreaBlock {
-        file_time: Some(::extra::FileTimeBlock {
+        file_time: Some(::extra_block::FileTimeBlock {
             modification_time: Some(NaiveDateTime::parse_from_str("2016-11-22 11:42:49", "%Y-%m-%d %H:%M:%S").unwrap()),
             creation_time: None,
             access_time: None,
@@ -190,8 +189,8 @@ fn test_archive_png() {
         file_encryption: None,
     };
 
-    let mut arc = File {
-        head: Header::new(1002517598, 43, ::header::Typ::File, flags),
+    let mut arc = FileBlock {
+        head: HeadBlock::new(1002517598, 43, ::head_block::Typ::File, flags),
         flags: file_flag,
         unpacked_size: 2149083,
         attributes: 32,

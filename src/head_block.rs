@@ -6,7 +6,7 @@ use util::get_bit_at;
 
 /// general Header valid for all rar blocks
 #[derive(PartialEq, Debug, Clone, Default)]
-pub struct Header {
+pub struct HeadBlock {
     pub crc: u32,
     pub size: u64,
     pub typ: Typ,
@@ -15,9 +15,10 @@ pub struct Header {
     pub data_area_size: u64,
 }
 
-impl Header {
+impl HeadBlock {
+    /// Create a new HeaderBlock
     pub fn new(crc: u32, size: u64, typ: Typ, flags: Flags,) -> Self {
-        Header {
+        HeadBlock {
             crc,
             size,
             typ,
@@ -26,7 +27,43 @@ impl Header {
             data_area_size: 0,
         }
     }
+
+    /// Parse a HeaderBlock from a byte slice
+    pub fn parse(input: &[u8]) -> nom::IResult<&[u8], HeadBlock> {
+        // get the base header
+        let (mut input, mut bh) = base_header(input)?;
+
+        // check for a extra area
+        if bh.flags.extra_area {
+            let (i, s) = vint(input)?;
+            input = i;
+            bh.extra_area_size = s;
+        }
+
+        // check for a data area
+        if bh.flags.data_area {
+            let (i, s) = vint(input)?;
+            input = i;
+            bh.data_area_size = s;
+        }
+
+        Ok((input, bh))
+    }
 }
+
+#[test]
+fn test_header() {
+    let data = [0xF3, 0xE1, 0x82, 0xEB, 0x0B, 0x01, 0x05, 0x07, 0x00];
+
+    let mut flags = Flags::new();
+    flags.extra_area = true;
+    flags.skip = true;
+    let mut h = HeadBlock::new(4091642603, 11, Typ::MainArchive, flags);
+    h.extra_area_size = 7;
+    assert_eq!(HeadBlock::parse(&data), Ok((&[0x00][..], h)));
+}
+
+
 
 /// Definition of the header block typ
 #[derive(PartialEq, Debug, Clone)]
@@ -102,48 +139,14 @@ impl From<u64> for Flags {
 }
 
 
-/// Returns the next complete vint number as u64.
-pub fn header(input: &[u8]) -> nom::IResult<&[u8], Header> {
-    // get the base header
-    let (mut input, mut bh) = base_header(input)?;
-
-    // check for a extra area
-    if bh.flags.extra_area {
-        let (i, s) = vint(input)?;
-        input = i;
-        bh.extra_area_size = s;
-    }
-
-    // check for a data area
-    if bh.flags.data_area {
-        let (i, s) = vint(input)?;
-        input = i;
-        bh.data_area_size = s;
-    }
-
-    Ok((input, bh))
-}
-#[test]
-fn test_header() {
-    let data = [0xF3, 0xE1, 0x82, 0xEB, 0x0B, 0x01, 0x05, 0x07, 0x00];
-
-    let mut flags = Flags::new();
-    flags.extra_area = true;
-    flags.skip = true;
-    let mut h = Header::new(4091642603, 11, Typ::MainArchive, flags);
-    h.extra_area_size = 7;
-    assert_eq!(header(&data), Ok((&[0x00][..], h)));
-}
-
-
 /// get a base header
-named!(base_header(&[u8]) -> (Header), 
+named!(base_header(&[u8]) -> (HeadBlock), 
     do_parse!(
         crc: be_u32 >>
         size: vint >>
         typ: vint >>
         flags: vint >>
-        (Header::new(crc, size, typ.into(), flags.into()))
+        (HeadBlock::new(crc, size, typ.into(), flags.into()))
     )
 );
 #[test]
@@ -153,7 +156,7 @@ fn test_base_header() {
     let mut flags = Flags::new();
     flags.extra_area = true;
     flags.skip = true;
-    let header = Header::new(4091642603, 11, Typ::MainArchive, flags);
+    let header = HeadBlock::new(4091642603, 11, Typ::MainArchive, flags);
     assert_eq!(base_header(&data), Ok((&[0x07][..], header)));
 }
 

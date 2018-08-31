@@ -21,8 +21,6 @@ pub fn vint(input: &[u8]) -> nom::IResult<&[u8], u64> {
                 return Err(nom::Err::Incomplete(nom::Needed::Size(1)));
             }
 
-            
-            
             // afterwards we are looping in a reversed order over the collection
             // to push all the remaining bits to our vint
             for i in coll.iter().rev() {

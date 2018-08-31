@@ -9,6 +9,8 @@ extern crate crypto;
 #[macro_use]
 extern crate lazy_static;
 
+mod sig_block;
+mod head_block;
 mod archive_block;
 mod file_block;
 mod extra_block;
@@ -17,8 +19,6 @@ mod rar_reader;
 mod aes_reader;
 mod file_writer;
 mod extractor;
-mod header;
-mod signature;
 mod util;
 mod vint;
 
@@ -32,7 +32,7 @@ use rar_reader::RarReader;
 /// The rar archive representation
 #[derive(PartialEq, Debug)]
 pub struct Archive {
-    pub version: signature::RarSignature,
+    pub version: sig_block::SignatureBlock,
     pub details: archive_block::ArchiveBlock,
     pub files: Vec<file_block::FileBlock>,
     pub quick_open: Option<file_block::FileBlock>,
@@ -46,14 +46,14 @@ impl Archive {
         // Open a file reader
         let reader = File::open(&file_name)?;
         // initilize the buffer
-        let mut buffer = RarReader::new_from_file(reader);
+        let mut reader = RarReader::new_from_file(reader);
 
         // try to parse the signature
-        let version = buffer
-            .exec_nom_parser(signature::RarSignature::parse)
+        let version = reader
+            .exec_nom_parser(sig_block::SignatureBlock::parse)
             .map_err(|_| format_err!("Can't read RAR signature"))?;
         // try to parse the archive information
-        let details = buffer
+        let details = reader
             .exec_nom_parser(archive_block::ArchiveBlock::parse)
             .map_err(|_| format_err!("Can't read RAR archive block"))?;
 
@@ -63,27 +63,27 @@ impl Archive {
         // loop over the packages and define how to handle them
         loop {
             // Check if the next is a file
-            match buffer.exec_nom_parser(file_block::FileBlock::parse) {
+            match reader.exec_nom_parser(file_block::FileBlock::parse) {
                 Ok(mut f) => {
                     // quick open file?
                     if f.name == "QO" {
-                        buffer.r_seek(f.head.data_area_size)?;
+                        reader.r_seek(f.head.data_area_size)?;
                         quick_open = Some(f);
                         break;
                     }
 
-                    // limit the buffer, because the rest of the file is not important,
+                    // limit the reader, because the rest of the file is not important,
                     // when we have multiple files
                     if f.head.flags.data_next {
-                        buffer = RarReader::new(buffer.take(f.head.data_area_size));
+                        reader = RarReader::new(reader.take(f.head.data_area_size));
                     }
 
                     // create a new reader which chains the different data areas
                     // between the different .rar files to extract the right one
                     let mut data_area_size = f.head.data_area_size;
                     while f.head.flags.data_next {
-                        buffer = extractor::continue_data_next_file(
-                            buffer,
+                        reader = extractor::continue_data_next_file(
+                            reader,
                             &mut f,
                             &file_name,
                             &mut file_number,
@@ -92,7 +92,7 @@ impl Archive {
                     }
 
                     // extract all the data
-                    extractor::extract(&f, path, &mut buffer, data_area_size, password)?;
+                    extractor::extract(&f, path, &mut reader, data_area_size, password)?;
 
                     // add the file to the array
                     files.push(f);
@@ -104,7 +104,7 @@ impl Archive {
         }
 
         // Get the end block
-        let end = buffer
+        let end = reader
             .exec_nom_parser(end_block::EndBlock::parse)
             .map_err(|_| format_err!("Can't read RAR end"))?;
 
@@ -123,7 +123,7 @@ impl Archive {
 /********************** All .rar file test **********************/
 #[cfg(test)]
 mod tests {
-    use signature;
+    use sig_block::SignatureBlock;
     use std::fs::{remove_dir_all, File};
     use std::io::Read;
     use Archive;
@@ -156,7 +156,7 @@ mod tests {
             "test",
         ).unwrap();
 
-        assert_eq!(archive.version, signature::RarSignature::RAR5);
+        assert_eq!(archive.version, SignatureBlock::RAR5);
         assert_eq!(archive.files[0].name, "text.txt");
         assert_eq!(archive.files[0].unpacked_size, 2118);
         assert_eq!(
@@ -175,7 +175,7 @@ mod tests {
             "test",
         ).unwrap();
 
-        assert_eq!(archive.version, signature::RarSignature::RAR5);
+        assert_eq!(archive.version, SignatureBlock::RAR5);
         assert_eq!(archive.files[0].name, "photo.jpg");
         assert_eq!(archive.files[0].unpacked_size, 2149083);
         assert_eq!(archive.files[1].name, "text.txt");
@@ -203,7 +203,7 @@ mod tests {
             "test",
         ).unwrap();
 
-        assert_eq!(archive.version, signature::RarSignature::RAR5);
+        assert_eq!(archive.version, SignatureBlock::RAR5);
         assert_eq!(archive.files[0].name, "photo.jpg");
         assert_eq!(archive.files[0].unpacked_size, 2149083);
         assert_eq!(archive.files[1].name, "text.txt");
@@ -229,7 +229,7 @@ mod tests {
             "test",
         ).unwrap();
 
-        assert_eq!(archive.version, signature::RarSignature::RAR5);
+        assert_eq!(archive.version, SignatureBlock::RAR5);
         assert_eq!(archive.files[0].name, "photo.jpg");
         assert_eq!(archive.files[0].unpacked_size, 2149083);
         assert_eq!(archive.files[1].name, "text.txt");

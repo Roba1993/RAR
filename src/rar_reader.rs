@@ -127,7 +127,7 @@ fn test_exec_nom_parser() {
 
     let mut db = RarReader::new(::std::io::Cursor::new(data));
 
-    assert!(db.exec_nom_parser(::signature::RarSignature::parse).is_ok());
+    assert!(db.exec_nom_parser(::sig_block::SignatureBlock::parse).is_ok());
     assert_eq!(db.fill_buf().unwrap(), &data[8..]);
 }
 #[test]

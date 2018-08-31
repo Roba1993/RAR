@@ -10,7 +10,7 @@ use std::io::Read;
 pub fn extract(
     file: &FileBlock,
     path: &str,
-    buffer: &mut RarReader,
+    reader: &mut RarReader,
     data_area_size: u64,
     password: &str,
 ) -> Result<(), Error> {
@@ -18,16 +18,16 @@ pub fn extract(
     let mut f_writer = FileWriter::new(file.clone(), &path)?;
 
     // Limit the data to take from the reader
-    let buffer = RarReader::new(buffer.take(data_area_size));
+    let reader = RarReader::new(reader.take(data_area_size));
 
     // Initilize the decryption reader
-    let mut buffer = RarAesReader::new(buffer, file.clone(), password);
+    let mut reader = RarAesReader::new(reader, file.clone(), password);
 
     // loop over chunks of the data and write it to the files
     let mut data_buffer = [0u8; ::BUFFER_SIZE];
     loop {
         // read a chunk of data from the buffer
-        let new_byte_count = buffer.read(&mut data_buffer)?;
+        let new_byte_count = reader.read(&mut data_buffer)?;
         let data = &mut data_buffer[..new_byte_count];
 
         // end loop if nothing is there anymore
@@ -78,7 +78,7 @@ pub fn continue_data_next_file<'a>(
 
     // try to parse the signature
     let version = new_buffer
-        .exec_nom_parser(::signature::RarSignature::parse)
+        .exec_nom_parser(::sig_block::SignatureBlock::parse)
         .map_err(|_| format_err!("Can't read RAR signature"))?;
     // try to parse the archive information
     let details = new_buffer
@@ -90,7 +90,7 @@ pub fn continue_data_next_file<'a>(
         .map_err(|_| format_err!("Can't read RAR file block"))?;
 
     // check if the next file info is the same as from prvious .rar
-    if version != ::signature::RarSignature::RAR5
+    if version != ::sig_block::SignatureBlock::RAR5
         || details.volume_number != *file_number as u64
         || new_file.name != file.name
     {

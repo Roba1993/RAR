@@ -1,27 +1,29 @@
 use nom;
 
+/// Signature of the .rar File. It can be either RAR5 or RAR4
 #[derive(PartialEq, Debug, Clone)]
-pub enum RarSignature {
+pub enum SignatureBlock {
     RAR5,
     RAR4
 }
 
-impl RarSignature {
-    pub fn parse(inp: &[u8]) -> nom::IResult<&[u8], RarSignature> {
+impl SignatureBlock {
+    /// Parse the .rar SignatureBlock
+    pub fn parse(inp: &[u8]) -> nom::IResult<&[u8], SignatureBlock> {
         rar_signature(inp)
     }
 }
 
 // get a rar file signature
-named!(rar_signature(&[u8]) -> (RarSignature), 
-    alt!(value!(RarSignature::RAR5, rar5_signature) | value!(RarSignature::RAR4, rar4_signature))
+named!(rar_signature(&[u8]) -> (SignatureBlock), 
+    alt!(value!(SignatureBlock::RAR5, rar5_signature) | value!(SignatureBlock::RAR4, rar4_signature))
 );
 #[test]
 fn test_rar_signature() {
     // rar 5 header test
-    assert_eq!(rar_signature(&[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]), Ok((&b""[..], RarSignature::RAR5)));
+    assert_eq!(rar_signature(&[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]), Ok((&b""[..], SignatureBlock::RAR5)));
     // rar 4 header test
-    assert_eq!(rar_signature(&[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]), Ok((&b""[..], RarSignature::RAR4)));
+    assert_eq!(rar_signature(&[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]), Ok((&b""[..], SignatureBlock::RAR4)));
 }
 
 // get a rar 5 file signature

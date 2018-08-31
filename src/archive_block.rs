@@ -1,4 +1,4 @@
-use header::Header;
+use head_block::HeadBlock;
 use nom;
 use util::get_bit_at;
 use vint::vint;
@@ -7,7 +7,7 @@ use vint::vint;
 /// .rar archive file.
 #[derive(PartialEq, Debug, Default)]
 pub struct ArchiveBlock {
-    pub head: Header,
+    pub head: HeadBlock,
     pub flags: ArchiveFlags,
     pub volume_number: u64,
 }
@@ -17,10 +17,10 @@ impl ArchiveBlock {
     /// When an error occours this function returns a nom error.
     pub fn parse(inp: &[u8]) -> nom::IResult<&[u8], ArchiveBlock> {
         // get the base header
-        let (input, head) = ::header::header(inp)?;
+        let (input, head) = HeadBlock::parse(inp)?;
 
         // check if the defined type is archive header
-        if head.typ != ::header::Typ::MainArchive {
+        if head.typ != ::head_block::Typ::MainArchive {
             return Err(nom::Err::Error(error_position!(inp, nom::ErrorKind::IsNot)));
         }
 
@@ -61,11 +61,11 @@ fn test_archive() {
         0x00, 0x8C, 0x0D, 0x88, 0xE2,
     ];
 
-    let mut flags = ::header::Flags::default();
+    let mut flags = ::head_block::Flags::default();
     flags.extra_area = true;
     flags.skip = true;
     let mut arc = ArchiveBlock {
-        head: Header::new(4091642603, 11, ::header::Typ::MainArchive, flags),
+        head: HeadBlock::new(4091642603, 11, ::head_block::Typ::MainArchive, flags),
         flags: ArchiveFlags::default(),
         volume_number: 0,
     };

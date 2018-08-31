@@ -1,5 +1,4 @@
-use header::header;
-use header::Header;
+use head_block::HeadBlock;
 use nom;
 use util::to_bool;
 use vint::vint;
@@ -7,7 +6,7 @@ use vint::vint;
 /// EndBlock which determines the end of an .rar file
 #[derive(PartialEq, Debug, Default)]
 pub struct EndBlock {
-    pub head: Header,
+    pub head: HeadBlock,
     pub last_volume: bool,
 }
 
@@ -15,10 +14,10 @@ impl EndBlock {
     /// Parse the end block information from a byte slice
     pub fn parse(inp: &[u8]) -> nom::IResult<&[u8], EndBlock> {
         // get the base header
-        let (input, head) = header(inp)?;
+        let (input, head) = HeadBlock::parse(inp)?;
 
         // check if the defined type is end archive header
-        if head.typ != ::header::Typ::EndArchive {
+        if head.typ != ::head_block::Typ::EndArchive {
             return Err(nom::Err::Error(error_position!(inp, nom::ErrorKind::IsNot)));
         }
 
@@ -38,10 +37,10 @@ fn test_archive() {
     // test a success case
     let data = [0x1D, 0x77, 0x56, 0x51, 0x03, 0x05, 0x04, 0x00];
 
-    let mut flags = ::header::Flags::new();
+    let mut flags = ::head_block::Flags::new();
     flags.skip = true;
     let arc = EndBlock {
-        head: Header::new(494360145, 3, ::header::Typ::EndArchive, flags),
+        head: HeadBlock::new(494360145, 3, ::head_block::Typ::EndArchive, flags),
         last_volume: true,
     };
     assert_eq!(EndBlock::parse(&data), Ok((&[][..], arc)));

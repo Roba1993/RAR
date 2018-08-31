@@ -1,5 +1,4 @@
-
-
+/// Returns true or fals if the bit is set at the given position
 pub fn get_bit_at(input: u64, n: u64) -> bool {
     if n < 64 {
         input & (1 << n) != 0
@@ -18,6 +17,10 @@ fn test_get_bit_at() {
     assert_eq!(get_bit_at(0x02, 1), true);
 }
 
+/// Split an u64 back to an array of u8
+/// 
+/// This is usefull if you need to have bytes again out of an
+/// vint
 pub fn split_u64(x: u64) -> [u8; 8] {
     let x = x.clone();
     let b1 : u8 = ((x >> 56) & 0xff) as u8;
@@ -40,6 +43,8 @@ fn test_split_u64() {
     assert_eq!(split_u64(0x0F0F0F0F), [0x00, 0x00, 0x00, 0x00, 0x0F, 0x0F, 0x0F, 0x0F]);
 }
 
+/// This function returns true when the value is greater than zero.
+/// If the value is zero, return false
 pub fn to_bool(i: u8) -> bool {
     if i > 0 {
         return true;
@@ -52,15 +57,3 @@ fn test_to_bool() {
     assert_eq!(to_bool(1), true);
     assert_eq!(to_bool(10), true);
 }
-
-/*
-    let data = [
-        0xF3, 0xE1, 0x82, 0xEB, 0x0B, 0x01, 0x05, 0x07,
-        0x00, 0x06, 0x01, 0x01, 0x80, 0x80, 0x80, 0x00, 0x8C, 
-        0x0D, 0x88, 0xE2, 0x24, 0x02, 0x03, 0x0B, 0xC6, 0x10, 
-        0x04, 0xC6, 0x10, 0x20, 0x93, 0xF2, 0x9A, 0xCB, 0x80, 
-        0x00, 0x00, 0x08, 0x74, 0x65, 0x78, 0x74, 0x2E, 0x74, 
-        0x78, 0x74, 0x0A, 0x03, 0x02, 0x78, 0x27, 0x3C, 0x1E, 
-        0x7D, 0xF2, 0xD3
-    ];
-    */

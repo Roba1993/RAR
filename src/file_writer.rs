@@ -59,7 +59,7 @@ mod tests {
     use std::fs::{File, remove_dir_all};
     use std::io::{Read, Write, ErrorKind};
     use file_writer::FileWriter;
-    use file::File as RarFile;
+    use file_block::FileBlock;
 
     // Small helper function to read a file
     fn read_file(path: &str) -> Vec<u8> {
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_file_writer() {
-        let mut file = RarFile::default();
+        let mut file = FileBlock::default();
         file.unpacked_size = 10;
         file.name = "test.txt".to_string();
 
