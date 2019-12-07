@@ -20,8 +20,8 @@ println!("Result: {:?}", archive);
 # Features
 **RAR 5**
 - [x] Extract archive with single File
-- [x] Extract archive with multible Files
-- [x] Extract splittet archive with multible files
+- [x] Extract archive with multiple Files
+- [x] Extract split archive with multiple files
 - [x] Extract encrypted archive
 - [x] Extract compression SAVE
 - [ ] Extract compression FASTEST
@@ -32,8 +32,8 @@ println!("Result: {:?}", archive);
 
 **RAR 4**
 - [ ] Extract archive with single File
-- [ ] Extract archive with multible Files
-- [ ] Extract splittet archive with multible files
+- [ ] Extract archive with multiple Files
+- [ ] Extract split archive with multiple files
 - [ ] Extract encrypted archive
 - [ ] Extract compression SAVE
 - [ ] Extract compression FASTEST
