@@ -3,22 +3,19 @@ use nom;
 use std::io;
 use std::io::{BufRead, BufReader, Read};
 
-/// The RarReader is abstracting an BufRead trait to 
+/// The RarReader is abstracting an BufRead trait to
 /// easily share, change and chain the different reader.
-/// 
+///
 /// In addition it provides and r_seek and nom parser functionality.
 pub struct RarReader<'a> {
     inner: Box<BufRead + 'a>,
 }
 
-
-impl<'a> RarReader<'a>{
+impl<'a> RarReader<'a> {
     /// Create a new RarReader based upon an anlready existing
     /// BufRead implementation
     pub fn new<R: BufRead + 'a>(r: R) -> RarReader<'a> {
-        RarReader {
-            inner: Box::new(r),
-        }
+        RarReader { inner: Box::new(r) }
     }
 
     /// Create a new RarReader implementation over an file.
@@ -31,7 +28,7 @@ impl<'a> RarReader<'a>{
 
     /// Seeks the reader forward -> right now it's leveraging the read function
     /// which is not really performant....
-    /// 
+    ///
     /// Unless the Chain struct is not supporting the Seek trait, we need to live with this.
     pub fn r_seek(&mut self, amt: u64) -> Result<(), io::Error> {
         let mut amt = amt;
@@ -59,7 +56,7 @@ impl<'a> RarReader<'a>{
     /// This function executes a nom parser against the data of the buffer.
     pub fn exec_nom_parser<F, D>(&mut self, func: F) -> Result<D, failure::Error>
     where
-        F: Fn(&[u8]) -> nom::IResult<&[u8], D>
+        F: Fn(&[u8]) -> nom::IResult<&[u8], D>,
     {
         // Local enum for collecting the stati and avoid locks between
         // using the inner bufreader
@@ -103,7 +100,6 @@ impl<'a> Read for RarReader<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
         self.inner.read(buf)
     }
-
 }
 
 impl<'a> BufRead for RarReader<'a> {
@@ -112,9 +108,9 @@ impl<'a> BufRead for RarReader<'a> {
         self.inner.fill_buf()
     }
 
-    /// Tells this buffer that amt bytes have been consumed from the buffer, 
+    /// Tells this buffer that amt bytes have been consumed from the buffer,
     /// so they should no longer be returned in calls to read.
-    /// 
+    ///
     /// Only the buffer is effected, can't push more foreward than the buffer
     fn consume(&mut self, amt: usize) {
         self.inner.consume(amt)
@@ -123,16 +119,22 @@ impl<'a> BufRead for RarReader<'a> {
 
 #[test]
 fn test_exec_nom_parser() {
-    let data = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00, 0xFF, 0xFF, 0xFF];
+    let data = [
+        0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00, 0xFF, 0xFF, 0xFF,
+    ];
 
     let mut db = RarReader::new(::std::io::Cursor::new(data));
 
-    assert!(db.exec_nom_parser(::sig_block::SignatureBlock::parse).is_ok());
+    assert!(db
+        .exec_nom_parser(::sig_block::SignatureBlock::parse)
+        .is_ok());
     assert_eq!(db.fill_buf().unwrap(), &data[8..]);
 }
 #[test]
 fn test_consume() {
-    let data = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00, 0xFF, 0xFF, 0xFF];
+    let data = [
+        0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00, 0xFF, 0xFF, 0xFF,
+    ];
 
     let mut db = RarReader::new(::std::io::Cursor::new(data));
 
@@ -141,7 +143,9 @@ fn test_consume() {
 }
 #[test]
 fn test_seek() {
-    let data = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00, 0xFF, 0xFF, 0xFF];
+    let data = [
+        0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00, 0xFF, 0xFF, 0xFF,
+    ];
 
     let mut db = RarReader::new(::std::io::Cursor::new(data));
 

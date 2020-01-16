@@ -1,8 +1,8 @@
 use nom;
 use nom::be_u32;
-use vint::vint;
 use std::convert::From;
 use util::get_bit_at;
+use vint::vint;
 
 /// general Header valid for all rar blocks
 #[derive(PartialEq, Debug, Clone, Default)]
@@ -17,7 +17,7 @@ pub struct HeadBlock {
 
 impl HeadBlock {
     /// Create a new HeaderBlock
-    pub fn new(crc: u32, size: u64, typ: Typ, flags: Flags,) -> Self {
+    pub fn new(crc: u32, size: u64, typ: Typ, flags: Flags) -> Self {
         HeadBlock {
             crc,
             size,
@@ -63,8 +63,6 @@ fn test_header() {
     assert_eq!(HeadBlock::parse(&data), Ok((&[0x00][..], h)));
 }
 
-
-
 /// Definition of the header block typ
 #[derive(PartialEq, Debug, Clone)]
 pub enum Typ {
@@ -84,7 +82,7 @@ impl From<u64> for Typ {
             3 => Typ::Service,
             4 => Typ::Encryption,
             5 => Typ::EndArchive,
-            _ => Typ::Unknown
+            _ => Typ::Unknown,
         }
     }
 }
@@ -95,17 +93,16 @@ impl Default for Typ {
     }
 }
 
-
 /// Flags for a header block
 #[derive(PartialEq, Debug, Clone, Default)]
 pub struct Flags {
-    pub extra_area: bool,   // Extra are is present in the end of header. 
-    pub data_area: bool,    // Data area is present in the end of header. 
-    pub skip: bool,         // Blocks with unknown type and this flag must be skipped when updating an archive. 
-    pub data_prev: bool,    // Data area is continuing from previous volume. 
-    pub data_next: bool,    // Data area is continuing in next volume. 
-    pub preceding: bool,    // Block depends on preceding file block. 
-    pub preserve: bool,     // Preserve a child block if host block is modified.
+    pub extra_area: bool, // Extra are is present in the end of header.
+    pub data_area: bool,  // Data area is present in the end of header.
+    pub skip: bool, // Blocks with unknown type and this flag must be skipped when updating an archive.
+    pub data_prev: bool, // Data area is continuing from previous volume.
+    pub data_next: bool, // Data area is continuing in next volume.
+    pub preceding: bool, // Block depends on preceding file block.
+    pub preserve: bool, // Preserve a child block if host block is modified.
 }
 
 impl Flags {
@@ -113,7 +110,7 @@ impl Flags {
         Flags {
             extra_area: false,
             data_area: false,
-            skip: false, 
+            skip: false,
             data_prev: false,
             data_next: false,
             preceding: false,
@@ -126,18 +123,31 @@ impl From<u64> for Flags {
     fn from(i: u64) -> Self {
         let mut f = Flags::new();
 
-        if get_bit_at(i, 0) { f.extra_area = true; }
-        if get_bit_at(i, 1) { f.data_area = true; }
-        if get_bit_at(i, 2) { f.skip = true; }
-        if get_bit_at(i, 3) { f.data_prev = true; }
-        if get_bit_at(i, 4) { f.data_next = true; }
-        if get_bit_at(i, 5) { f.preceding = true; }
-        if get_bit_at(i, 6) { f.preserve = true; }
+        if get_bit_at(i, 0) {
+            f.extra_area = true;
+        }
+        if get_bit_at(i, 1) {
+            f.data_area = true;
+        }
+        if get_bit_at(i, 2) {
+            f.skip = true;
+        }
+        if get_bit_at(i, 3) {
+            f.data_prev = true;
+        }
+        if get_bit_at(i, 4) {
+            f.data_next = true;
+        }
+        if get_bit_at(i, 5) {
+            f.preceding = true;
+        }
+        if get_bit_at(i, 6) {
+            f.preserve = true;
+        }
 
         f
     }
 }
-
 
 /// get a base header
 named!(base_header(&[u8]) -> (HeadBlock), 
@@ -159,4 +169,3 @@ fn test_base_header() {
     let header = HeadBlock::new(4091642603, 11, Typ::MainArchive, flags);
     assert_eq!(base_header(&data), Ok((&[0x07][..], header)));
 }
-

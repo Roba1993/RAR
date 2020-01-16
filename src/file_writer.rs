@@ -1,6 +1,6 @@
-use std::fs;
 use file_block::FileBlock;
-use std::io::{BufWriter, Write, Result};
+use std::fs;
+use std::io::{BufWriter, Result, Write};
 
 /// This FileWriter writes out the data into a new
 /// file underneath the given path
@@ -56,14 +56,14 @@ impl Write for FileWriter {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::{File, remove_dir_all};
-    use std::io::{Read, Write, ErrorKind};
-    use file_writer::FileWriter;
     use file_block::FileBlock;
+    use file_writer::FileWriter;
+    use std::fs::{remove_dir_all, File};
+    use std::io::{ErrorKind, Read, Write};
 
     // Small helper function to read a file
     fn read_file(path: &str) -> Vec<u8> {
-        let mut data = vec!();
+        let mut data = vec![];
         let mut file = File::open(path).unwrap();
         file.read_to_end(&mut data).unwrap();
         data
@@ -75,15 +75,24 @@ mod tests {
         file.unpacked_size = 10;
         file.name = "test.txt".to_string();
 
-        let data = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13, 0x14];
+        let data = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13,
+            0x14,
+        ];
 
         {
             let mut fw = FileWriter::new(file, "target/rar-test/file_writer/").unwrap();
-            assert_eq!(fw.write_all(&data).map_err(|e| e.kind()), Err(ErrorKind::WriteZero));
+            assert_eq!(
+                fw.write_all(&data).map_err(|e| e.kind()),
+                Err(ErrorKind::WriteZero)
+            );
             fw.flush().unwrap();
         }
-        
-        assert_eq!(read_file("target/rar-test/file_writer/test.txt"), data[..10].to_vec());
+
+        assert_eq!(
+            read_file("target/rar-test/file_writer/test.txt"),
+            data[..10].to_vec()
+        );
 
         remove_dir_all("target/rar-test/file_writer/").unwrap();
     }

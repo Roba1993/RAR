@@ -9,25 +9,25 @@ extern crate crypto;
 #[macro_use]
 extern crate lazy_static;
 
-mod sig_block;
-mod head_block;
-mod archive_block;
-mod file_block;
-mod extra_block;
-mod end_block;
-mod rar_reader;
 mod aes_reader;
-mod file_writer;
+mod archive_block;
+mod end_block;
+mod extra_block;
 mod extractor;
+mod file_block;
+mod file_writer;
+mod head_block;
+mod rar_reader;
+mod sig_block;
 mod util;
 mod vint;
 
 const BUFFER_SIZE: usize = 8192;
 
 use failure::Error;
+use rar_reader::RarReader;
 use std::fs::File;
 use std::io::Read;
-use rar_reader::RarReader;
 
 /// The rar archive representation
 #[derive(PartialEq, Debug)]
@@ -119,7 +119,6 @@ impl Archive {
     }
 }
 
-
 /********************** All .rar file test **********************/
 #[cfg(test)]
 mod tests {
@@ -154,7 +153,8 @@ mod tests {
             &format!("assets/{}.rar", rar),
             &format!("target/rar-test/{}/", rar),
             "test",
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(archive.version, SignatureBlock::RAR5);
         assert_eq!(archive.files[0].name, "text.txt");
@@ -173,7 +173,8 @@ mod tests {
             "assets/rar5-save-32mb-txt-png.rar",
             "target/rar-test/rar5-save-32mb-txt-png/",
             "test",
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(archive.version, SignatureBlock::RAR5);
         assert_eq!(archive.files[0].name, "photo.jpg");
@@ -201,7 +202,8 @@ mod tests {
             "assets/rar5-save-32mb-txt-png-pw-test.rar",
             "target/rar-test/rar5-save-32mb-txt-png-pw-test/",
             "test",
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(archive.version, SignatureBlock::RAR5);
         assert_eq!(archive.files[0].name, "photo.jpg");
@@ -227,7 +229,8 @@ mod tests {
             "assets/rar5-save-32mb-txt-png-512kb.part1.rar",
             "target/rar-test/rar5-save-32mb-txt-png-512kb/",
             "test",
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(archive.version, SignatureBlock::RAR5);
         assert_eq!(archive.files[0].name, "photo.jpg");
