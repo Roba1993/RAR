@@ -4,7 +4,7 @@ use nom;
 #[derive(PartialEq, Debug, Clone)]
 pub enum SignatureBlock {
     RAR5,
-    RAR4
+    RAR4,
 }
 
 impl SignatureBlock {
@@ -21,9 +21,15 @@ named!(rar_signature(&[u8]) -> (SignatureBlock),
 #[test]
 fn test_rar_signature() {
     // rar 5 header test
-    assert_eq!(rar_signature(&[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]), Ok((&b""[..], SignatureBlock::RAR5)));
+    assert_eq!(
+        rar_signature(&[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]),
+        Ok((&b""[..], SignatureBlock::RAR5))
+    );
     // rar 4 header test
-    assert_eq!(rar_signature(&[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]), Ok((&b""[..], SignatureBlock::RAR4)));
+    assert_eq!(
+        rar_signature(&[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]),
+        Ok((&b""[..], SignatureBlock::RAR4))
+    );
 }
 
 // get a rar 5 file signature
@@ -55,6 +61,9 @@ named!(rar_pre_signature, tag!("Rar!"));
 #[test]
 fn test_rar_pre_signature() {
     assert_eq!(rar_pre_signature(b"Rar!"), Ok((&b""[..], &b"Rar!"[..])));
-    assert_eq!(rar_pre_signature(b"Rar!asdad"), Ok((&b"asdad"[..], &b"Rar!"[..])));
+    assert_eq!(
+        rar_pre_signature(b"Rar!asdad"),
+        Ok((&b"asdad"[..], &b"Rar!"[..]))
+    );
     assert!(rar_pre_signature(b"wrog").is_err());
 }

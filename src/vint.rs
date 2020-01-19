@@ -9,15 +9,17 @@ pub fn vint(input: &[u8]) -> nom::IResult<&[u8], u64> {
     match collect_vint(input) {
         Ok(v) => {
             // get just the data bit's from the collection
-            let coll = v.1.iter().map(|x| split_vint(x.clone()).1 as u64).collect::<Vec<u64>>();
+            let coll =
+                v.1.iter()
+                    .map(|x| split_vint(x.clone()).1 as u64)
+                    .collect::<Vec<u64>>();
             let mut len = coll.len();
 
             // we starting from the back, so we take the last byte with is not part of
             // the collection, because it has no high bit
             if let Ok(f) = take_one(&input[len..]) {
                 out = split_vint(f.1[0]).1 as u64;
-            }
-            else {
+            } else {
                 return Err(nom::Err::Incomplete(nom::Needed::Size(1)));
             }
 
@@ -25,13 +27,13 @@ pub fn vint(input: &[u8]) -> nom::IResult<&[u8], u64> {
             // to push all the remaining bits to our vint
             for i in coll.iter().rev() {
                 out = out << 7;
-                out += i;        
+                out += i;
             }
-            
+
             // define the right the length to push the input foreward
             len += 1;
             return Ok((&input[len..], out));
-        },
+        }
         // we only end the function early when there is not enough data
         Err(e) => {
             if e.is_incomplete() {
@@ -62,8 +64,14 @@ named!(collect_vint(&[u8]) -> (&[u8]),
 );
 #[test]
 fn test_collect_vint() {
-    assert_eq!(collect_vint(&[0xFF, 0xFF, 0x00]), Ok((&[0x00][..],  &[0xFF, 0xFF][..])));
-    assert_eq!(collect_vint(&[0xFF, 0xFF, 0x00, 0xFF]), Ok((&[0x00, 0xFF][..],  &[0xFF, 0xFF][..])));
+    assert_eq!(
+        collect_vint(&[0xFF, 0xFF, 0x00]),
+        Ok((&[0x00][..], &[0xFF, 0xFF][..]))
+    );
+    assert_eq!(
+        collect_vint(&[0xFF, 0xFF, 0x00, 0xFF]),
+        Ok((&[0x00, 0xFF][..], &[0xFF, 0xFF][..]))
+    );
     assert!(collect_vint(&[0xFF, 0xFF]).is_err());
     assert!(collect_vint(&[0x01]).is_err());
     assert!(collect_vint(&[0x01, 0x01]).is_err());
@@ -76,8 +84,14 @@ named!(take_one(&[u8]) -> (&[u8]),
 );
 #[test]
 fn test_take_one() {
-    assert_eq!(take_one(&[0xFF, 0xFF, 0x00]), Ok((&[0xFF, 0x00][..],  &[0xFF][..])));
-    assert_eq!(take_one(&[0xFF, 0xFF, 0x00, 0xFF]), Ok((&[0xFF, 0x00, 0xFF][..],  &[0xFF][..])));
+    assert_eq!(
+        take_one(&[0xFF, 0xFF, 0x00]),
+        Ok((&[0xFF, 0x00][..], &[0xFF][..]))
+    );
+    assert_eq!(
+        take_one(&[0xFF, 0xFF, 0x00, 0xFF]),
+        Ok((&[0xFF, 0x00, 0xFF][..], &[0xFF][..]))
+    );
     assert!(take_one(&[]).is_err());
 }
 
