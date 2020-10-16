@@ -57,9 +57,9 @@ fn test_vint() {
     assert!(vint(&[0xFF, 0xFF]).is_err());
 }
 
-/// Collect all vint which have a hight bit
-/// Failes if no bit is available or the array end's with a high bit
-named!(collect_vint(&[u8]) -> (&[u8]),
+named_attr!(
+    #[doc="Collect all vint which have a hight bit\nFailes if no bit is available or the array end's with a high bit"],
+    collect_vint(&[u8]) -> &[u8],
     take_while1!(is_vint_bit)
 );
 #[test]
@@ -78,8 +78,7 @@ fn test_collect_vint() {
     assert!(collect_vint(&[]).is_err());
 }
 
-/// Take one byte
-named!(take_one(&[u8]) -> (&[u8]),
+named_attr!(#[doc = "Take one byte"], take_one(&[u8]) -> &[u8],
     take!(1)
 );
 #[test]

@@ -149,8 +149,7 @@ impl From<u64> for Flags {
     }
 }
 
-/// get a base header
-named!(base_header(&[u8]) -> (HeadBlock), 
+named_attr!(#[doc = "Get a base header"], base_header(&[u8]) -> HeadBlock,
     do_parse!(
         crc: be_u32 >>
         size: vint >>

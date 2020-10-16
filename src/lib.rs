@@ -137,12 +137,12 @@ mod tests {
 
     // Get the photo globally so that every test can compare it
     lazy_static! {
-        static ref PHOTO: Vec<u8> = { read_file("assets/photo.jpg") };
+        static ref PHOTO: Vec<u8> = read_file("assets/photo.jpg");
     }
 
     // Get the photo globally so that every test can compare it
     lazy_static! {
-        static ref TEXT: Vec<u8> = { read_file("assets/text.txt") };
+        static ref TEXT: Vec<u8> = read_file("assets/text.txt");
     }
 
     #[test]

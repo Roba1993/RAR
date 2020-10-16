@@ -14,8 +14,7 @@ impl SignatureBlock {
     }
 }
 
-// get a rar file signature
-named!(rar_signature(&[u8]) -> (SignatureBlock), 
+named_attr!(#[doc="get a rar file signature"], rar_signature(&[u8]) -> SignatureBlock,
     alt!(value!(SignatureBlock::RAR5, rar5_signature) | value!(SignatureBlock::RAR4, rar4_signature))
 );
 #[test]
