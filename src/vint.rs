@@ -58,7 +58,7 @@ fn test_vint() {
 }
 
 named_attr!(
-    #[doc="Collect all vint which have a hight bit\nFailes if no bit is available or the array end's with a high bit"],
+    #[doc="Collect all vint which have a hight bit\nFails if no bit is available or the array end's with a high bit"],
     collect_vint(&[u8]) -> &[u8],
     take_while1!(is_vint_bit)
 );

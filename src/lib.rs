@@ -195,7 +195,6 @@ mod tests {
     }
 
     #[test]
-    // this test takes a while right now
     fn test_rar5_save_32mb_txt_png_pw_test() {
         let archive = Archive::extract_all(
             "assets/rar5-save-32mb-txt-png-pw-test.rar",
