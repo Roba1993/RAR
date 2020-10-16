@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader, Read};
 ///
 /// In addition it provides and r_seek and nom parser functionality.
 pub struct RarReader<'a> {
-    inner: Box<BufRead + 'a>,
+    inner: Box<dyn BufRead + 'a>,
 }
 
 impl<'a> RarReader<'a> {
