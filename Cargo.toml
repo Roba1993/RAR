@@ -7,6 +7,7 @@ readme = "README.md"
 repository = "https://github.com/Roba1993/RAR"
 homepage = "https://github.com/Roba1993/RAR"
 description = """
+edition= "2018"
 Rust native RAR extractor based upon nom
 """
 exclude = [
