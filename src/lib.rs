@@ -137,12 +137,12 @@ mod tests {
 
     // Get the photo globally so that every test can compare it
     lazy_static! {
-        static ref PHOTO: Vec<u8> = { read_file("assets/photo.jpg") };
+        static ref PHOTO: Vec<u8> = read_file("assets/photo.jpg");
     }
 
     // Get the photo globally so that every test can compare it
     lazy_static! {
-        static ref TEXT: Vec<u8> = { read_file("assets/text.txt") };
+        static ref TEXT: Vec<u8> = read_file("assets/text.txt");
     }
 
     #[test]
@@ -195,8 +195,6 @@ mod tests {
     }
 
     #[test]
-    // this test takes a while right now
-    #[ignore]
     fn test_rar5_save_32mb_txt_png_pw_test() {
         let archive = Archive::extract_all(
             "assets/rar5-save-32mb-txt-png-pw-test.rar",

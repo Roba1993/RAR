@@ -1,12 +1,13 @@
 [package]
 name = "rar"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Robert Schütte <schuetterobert@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/Roba1993/RAR"
 homepage = "https://github.com/Roba1993/RAR"
 description = """
+edition= "2018"
 Rust native RAR extractor based upon nom
 """
 exclude = [
