@@ -68,9 +68,11 @@ fn test_archive() {
         0x00, 0x8C, 0x0D, 0x88, 0xE2,
     ];
 
-    let mut flags = Flags::default();
-    flags.extra_area = true;
-    flags.skip = true;
+    let flags = Flags {
+        extra_area: true,
+        skip: true,
+        ..Default::default()
+    };
     let mut arc = ArchiveBlock {
         head: HeadBlock::new(4091642603, 11, Typ::MainArchive, flags),
         flags: ArchiveFlags::default(),

@@ -71,9 +71,11 @@ mod tests {
 
     #[test]
     fn test_file_writer() {
-        let mut file = FileBlock::default();
-        file.unpacked_size = 10;
-        file.name = "test.txt".to_string();
+        let file = FileBlock {
+            unpacked_size: 10,
+            name: "test.txt".to_string(),
+            ..Default::default()
+        };
 
         let data = [
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11, 0x12, 0x13,

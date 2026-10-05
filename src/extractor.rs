@@ -1,11 +1,11 @@
 use crate::aes_reader::RarAesReader;
+use crate::compression::CompressionReader;
 use crate::error::{RarError, Result};
 use crate::file_block::FileBlock;
 use crate::file_writer::FileWriter;
 use crate::rar_reader::RarReader;
-use crate::{archive_block::ArchiveBlock, sig_block::SignatureBlock, BUFFER_SIZE};
-use std::io::prelude::*;
-use std::io::Read;
+use crate::{archive_block::ArchiveBlock, sig_block::SignatureBlock};
+use std::io::{Read, Write};
 
 /// This function extracts the data from a RarReader and writes it into an file.
 pub fn extract(
@@ -21,36 +21,26 @@ pub fn extract(
     // Limit the data to take from the reader
     let reader = RarReader::new(reader.take(data_area_size));
 
-    // Initilize the decryption reader
-    let mut reader = RarAesReader::new(reader, file.clone(), password);
+    // Initialize the decryption reader
+    let aes_reader = RarAesReader::new(reader, file.clone(), password);
 
-    // loop over chunks of the data and write it to the files
-    let mut data_buffer = [0u8; BUFFER_SIZE];
+    // Chain AES reader directly to compression reader for true streaming
+    let mut comp_reader = CompressionReader::new(aes_reader, &file.compression)?;
+
+    // Stream with proper size limit handling
+    let mut buffer = [0u8; 8192];
     loop {
-        // read a chunk of data from the buffer
-        let new_byte_count = reader.read(&mut data_buffer)?;
-        let data = &mut data_buffer[..new_byte_count];
-
-        // end loop if nothing is there anymore
-        if new_byte_count == 0 {
+        let bytes_read = comp_reader.read(&mut buffer)?;
+        if bytes_read == 0 {
             break;
         }
 
-        // unpack if necessary
-        // todo
-
-        // write out the data
-        if let Err(e) = f_writer.write_all(data) {
-            if e.kind() == ::std::io::ErrorKind::WriteZero {
-                // end loop when the file capacity is reached
-                break;
-            } else {
-                Err(e)?;
-            }
+        let bytes_written = f_writer.write(&buffer[..bytes_read])?;
+        if bytes_written == 0 {
+            break; // File size limit reached
         }
     }
 
-    // flush the data
     f_writer.flush()?;
 
     Ok(())

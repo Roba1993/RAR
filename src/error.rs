@@ -23,6 +23,9 @@ pub enum RarError {
 
     #[error("File {filename} not found in archive")]
     FileNotFound { filename: String },
+
+    #[error("Unsupported compression method")]
+    UnsupportedCompression,
 }
 
 pub type Result<T> = std::result::Result<T, RarError>;

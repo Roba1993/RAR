@@ -82,20 +82,23 @@ fn test_parse_extra_area_multi() {
         access_time: None,
     };
 
-    let mut febf = FileEncryptionBlockFlags::default();
-    febf.pw_check_data = true;
-    febf.tweaked_crc = true;
+    let febf = FileEncryptionBlockFlags {
+        pw_check_data: true,
+        tweaked_crc: true,
+    };
 
-    let mut feb = FileEncryptionBlock::default();
-    feb.flags = febf;
-    feb.kdf_count = 15;
-    feb.salt = [
-        145, 54, 92, 222, 142, 142, 13, 19, 255, 186, 128, 233, 43, 95, 8, 74,
-    ];
-    feb.init = [
-        141, 80, 55, 232, 205, 190, 86, 123, 202, 195, 252, 119, 133, 39, 123, 186,
-    ];
-    feb.pw_check = [8, 242, 216, 179, 32, 113, 132, 82, 146, 25, 86, 17];
+    let feb = FileEncryptionBlock {
+        flags: febf,
+        kdf_count: 15,
+        salt: [
+            145, 54, 92, 222, 142, 142, 13, 19, 255, 186, 128, 233, 43, 95, 8, 74,
+        ],
+        init: [
+            141, 80, 55, 232, 205, 190, 86, 123, 202, 195, 252, 119, 133, 39, 123, 186,
+        ],
+        pw_check: [8, 242, 216, 179, 32, 113, 132, 82, 146, 25, 86, 17],
+        ..Default::default()
+    };
 
     let eab = ExtraAreaBlock {
         file_time: Some(ftb),
@@ -255,20 +258,23 @@ fn test_file_encryption_parse() {
         0x11,
     ];
 
-    let mut febf = FileEncryptionBlockFlags::default();
-    febf.pw_check_data = true;
-    febf.tweaked_crc = true;
+    let febf = FileEncryptionBlockFlags {
+        pw_check_data: true,
+        tweaked_crc: true,
+    };
 
-    let mut feb = FileEncryptionBlock::default();
-    feb.flags = febf;
-    feb.kdf_count = 15;
-    feb.salt = [
-        145, 54, 92, 222, 142, 142, 13, 19, 255, 186, 128, 233, 43, 95, 8, 74,
-    ];
-    feb.init = [
-        141, 80, 55, 232, 205, 190, 86, 123, 202, 195, 252, 119, 133, 39, 123, 186,
-    ];
-    feb.pw_check = [8, 242, 216, 179, 32, 113, 132, 82, 146, 25, 86, 17];
+    let feb = FileEncryptionBlock {
+        flags: febf,
+        kdf_count: 15,
+        salt: [
+            145, 54, 92, 222, 142, 142, 13, 19, 255, 186, 128, 233, 43, 95, 8, 74,
+        ],
+        init: [
+            141, 80, 55, 232, 205, 190, 86, 123, 202, 195, 252, 119, 133, 39, 123, 186,
+        ],
+        pw_check: [8, 242, 216, 179, 32, 113, 132, 82, 146, 25, 86, 17],
+        ..Default::default()
+    };
 
     assert_eq!(FileEncryptionBlock::parse(&data), Ok((&[][..], feb)));
 }

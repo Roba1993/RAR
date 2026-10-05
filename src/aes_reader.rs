@@ -1,7 +1,5 @@
 use aes::Aes256;
-#[allow(deprecated)]
-use cbc::cipher::generic_array::GenericArray;
-use cbc::cipher::{BlockDecryptMut, KeyIvInit};
+use cbc::cipher::{block_padding::NoPadding, BlockModeDecrypt, KeyIvInit};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use sha2::Sha256;
@@ -14,29 +12,24 @@ type Aes256CbcDec = cbc::Decryptor<Aes256>;
 
 /// RAR Decryption reader to decrypt .rar archive files
 pub struct RarAesReader<R: Read> {
-    /// Reader to read encrypted data from
     reader: R,
-    /// Define if the encryption is active
     active: bool,
-    /// Decrypted buffer
     buffer: Vec<u8>,
-    /// Position in buffer
     buffer_pos: usize,
-    /// Decryptor instance
-    decryptor: Option<Aes256CbcDec>,
-    /// Buffer for accumulating encrypted data
+    key: [u8; 32],
+    iv: [u8; 16],
     encrypted_buffer: Vec<u8>,
 }
 
 impl<R: Read> RarAesReader<R> {
-    /// Create a new decryption reader
     pub fn new(reader: R, file: FileBlock, pwd: &str) -> RarAesReader<R> {
         let mut active = false;
-        let mut decryptor = None;
+        let mut key = [0u8; 32];
+        let mut iv = [0u8; 16];
 
         if let Some(f) = file.extra.file_encryption {
-            let key = generate_key(&f, pwd);
-            decryptor = Some(Aes256CbcDec::new(&key.into(), &f.init.into()));
+            key = generate_key(&f, pwd);
+            iv.copy_from_slice(&f.init);
             active = true;
         }
 
@@ -45,7 +38,8 @@ impl<R: Read> RarAesReader<R> {
             active,
             buffer: Vec::new(),
             buffer_pos: 0,
-            decryptor,
+            key,
+            iv,
             encrypted_buffer: Vec::new(),
         }
     }
@@ -57,7 +51,6 @@ impl<R: Read> Read for RarAesReader<R> {
             return self.reader.read(buf);
         }
 
-        // If we have data in buffer, use it first
         if self.buffer_pos < self.buffer.len() {
             let available = self.buffer.len() - self.buffer_pos;
             let to_copy = buf.len().min(available);
@@ -67,11 +60,9 @@ impl<R: Read> Read for RarAesReader<R> {
             return Ok(to_copy);
         }
 
-        // Reset buffer for new data
         self.buffer.clear();
         self.buffer_pos = 0;
 
-        // Read more encrypted data
         let mut temp_buf = vec![0u8; 4096];
         let bytes_read = self.reader.read(&mut temp_buf)?;
 
@@ -79,44 +70,34 @@ impl<R: Read> Read for RarAesReader<R> {
             return Ok(0);
         }
 
-        // Add new data to encrypted buffer
         self.encrypted_buffer
             .extend_from_slice(&temp_buf[..bytes_read]);
 
-        // Decrypt complete 16-byte blocks
-        if let Some(ref mut dec) = self.decryptor {
-            let complete_blocks = self.encrypted_buffer.len() / 16;
-            if complete_blocks > 0 {
-                let blocks_to_decrypt = complete_blocks * 16;
+        let complete_blocks = self.encrypted_buffer.len() / 16;
+        if complete_blocks > 0 {
+            let blocks_to_decrypt = complete_blocks * 16;
 
-                // Create GenericArray blocks for batch decryption
-                let mut blocks: Vec<GenericArray<u8, _>> = self.encrypted_buffer
-                    [..blocks_to_decrypt]
-                    .chunks_exact(16)
-                    .map(|chunk| *GenericArray::from_slice(chunk))
-                    .collect();
+            // Save last ciphertext block as next IV for CBC chaining
+            let mut next_iv = [0u8; 16];
+            next_iv
+                .copy_from_slice(&self.encrypted_buffer[blocks_to_decrypt - 16..blocks_to_decrypt]);
 
-                // Decrypt all blocks at once to maintain CBC chain
-                dec.decrypt_blocks_mut(&mut blocks);
-
-                // Move decrypted data to buffer
-                for block in blocks {
-                    self.buffer.extend_from_slice(&block);
-                }
-
-                // Keep remaining incomplete block for next read
-                self.encrypted_buffer.drain(..blocks_to_decrypt);
+            let mut data = self.encrypted_buffer[..blocks_to_decrypt].to_vec();
+            let dec = Aes256CbcDec::new(&self.key.into(), &self.iv.into());
+            if let Ok(pt) = dec.decrypt_padded::<NoPadding>(&mut data) {
+                self.buffer.extend_from_slice(pt);
             }
+
+            self.iv = next_iv;
+            self.encrypted_buffer.drain(..blocks_to_decrypt);
         }
 
-        // Return data from buffer
         if !self.buffer.is_empty() {
             let to_copy = buf.len().min(self.buffer.len());
             buf[..to_copy].copy_from_slice(&self.buffer[..to_copy]);
             self.buffer_pos = to_copy;
             Ok(to_copy)
         } else {
-            // No complete blocks to decrypt yet, try reading more
             self.read(buf)
         }
     }

@@ -4,7 +4,7 @@ use crate::extra_block::FileTimeBlock;
 #[cfg(test)]
 use crate::head_block::Flags;
 use crate::head_block::{HeadBlock, Typ};
-use crate::util::{get_bit_at, split_u64, to_bool};
+use crate::util::get_bit_at;
 use crate::vint::vint;
 
 use nom::bytes::complete::take;
@@ -133,8 +133,10 @@ fn test_archive() {
         dictonary: 0,
     };
 
-    let mut file_flag = FileFlags::default();
-    file_flag.crc = true;
+    let file_flag = FileFlags {
+        crc: true,
+        ..Default::default()
+    };
 
     let eab = ExtraAreaBlock {
         file_time: Some(FileTimeBlock {
@@ -187,8 +189,10 @@ fn test_archive_png() {
         dictonary: 0,
     };
 
-    let mut file_flag = FileFlags::default();
-    file_flag.crc = true;
+    let file_flag = FileFlags {
+        crc: true,
+        ..Default::default()
+    };
 
     let eab = ExtraAreaBlock {
         file_time: Some(FileTimeBlock {
@@ -286,31 +290,24 @@ impl Compression {
         // get the vint
         let (inp, raw) = vint(inp)?;
 
-        // split it back to an u8 array
-        let clean = &split_u64(raw)[..];
+        // RAR5 compression format (corrected bit layout):
+        // Bits 7-10: compression method (0=Save, 1=Fastest, 2=Fast, 3=Normal, 4=Good, 5=Best)
+        // Bits 6-7: version
+        // Bit 5: solid flag
+        // Bit 4: dictionary size flag
+        let method = ((raw >> 7) & 0x0F) as u8;
+        let version = ((raw >> 6) & 0x03) as u8;
+        let solid = ((raw >> 5) & 0x01) != 0;
+        let dict = ((raw >> 4) & 0x01) as u8;
 
-        // get the data from the compression
-        // !!!!!! THIS IS PROBABLY WRONG !!!!!!
-        let c = if !clean.is_empty() {
-            let byte = clean[0];
-            Ok((
-                &clean[1..],
-                Compression {
-                    version: (byte >> 2) & 0x3F,
-                    solid: to_bool((byte >> 1) & 0x01),
-                    flag: ((byte >> 4) & 0x0F).into(),
-                    dictonary: byte & 0x0F,
-                },
-            ))
-        } else {
-            Err(nom::Err::Error(nom::error::Error::new(inp, ErrorKind::Eof)))
+        let compression = Compression {
+            version,
+            solid,
+            flag: method.into(),
+            dictonary: dict,
         };
 
-        // change the error to an inp error and not and bit matchign error
-        let c = c.map_err(|_| nom::Err::Error(nom::error::Error::new(inp, ErrorKind::Verify)))?;
-
-        // return the compression
-        Ok((inp, c.1))
+        Ok((inp, compression))
     }
 
     /// Return the dictonary in the right format
@@ -353,7 +350,7 @@ fn test_get_directonary() {
 }
 
 /// Compression Flags
-#[derive(PartialEq, Debug, Clone, Default)]
+#[derive(PartialEq, Debug, Clone, Copy, Default)]
 pub enum CompressionFlags {
     Save,
     Fastest,
