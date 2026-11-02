@@ -12,3 +12,7 @@ Cargo.lock
 .DS_Store
 # Ignore Kiro directory (settings, local agent state, etc.)
 .kiro/
+
+# Kiro session artifacts
+context.zip
+context.json
