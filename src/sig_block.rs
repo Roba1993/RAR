@@ -1,6 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::value;
+use nom::Parser;
 
 /// Signature of the .rar File. It can be either RAR5 or RAR4
 #[derive(PartialEq, Debug, Clone)]
@@ -20,17 +21,18 @@ fn rar_signature(input: &[u8]) -> nom::IResult<&[u8], SignatureBlock> {
     alt((
         value(SignatureBlock::RAR5, rar5_signature),
         value(SignatureBlock::RAR4, rar4_signature),
-    ))(input)
+    ))
+    .parse(input)
 }
 
 fn rar5_signature(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
     let (input, _) = rar_pre_signature(input)?;
-    tag(&[0x1A, 0x07, 0x01, 0x00])(input)
+    tag(b"\x1A\x07\x01\x00".as_slice())(input)
 }
 
 fn rar4_signature(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
     let (input, _) = rar_pre_signature(input)?;
-    tag(&[0x1A, 0x07, 0x00])(input)
+    tag(b"\x1A\x07\x00".as_slice())(input)
 }
 
 fn rar_pre_signature(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {

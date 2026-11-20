@@ -4,12 +4,12 @@ use crate::extra_block::FileTimeBlock;
 #[cfg(test)]
 use crate::head_block::Flags;
 use crate::head_block::{HeadBlock, Typ};
-use crate::util::{get_bit_at, split_u64, to_bool};
+use crate::util::get_bit_at;
 use crate::vint::vint;
 
 use nom::bytes::complete::take;
 use nom::error::ErrorKind;
-use nom::number::complete::be_u32;
+use nom::number::complete::le_u32;
 
 /// FileBlock
 #[derive(PartialEq, Debug, Clone, Default)]
@@ -75,14 +75,14 @@ impl FileBlock {
 
         // check for time
         if file.flags.time {
-            let (i, mtime) = be_u32(input)?;
+            let (i, mtime) = le_u32(input)?;
             input = i;
             file.mtime = mtime;
         }
 
         // check for file crc data
         if file.flags.crc {
-            let (i, crc) = be_u32(input)?;
+            let (i, crc) = le_u32(input)?;
             input = i;
             file.data_crc = crc;
         }
@@ -133,8 +133,10 @@ fn test_archive() {
         dictonary: 0,
     };
 
-    let mut file_flag = FileFlags::default();
-    file_flag.crc = true;
+    let file_flag = FileFlags {
+        crc: true,
+        ..Default::default()
+    };
 
     let eab = ExtraAreaBlock {
         file_time: Some(FileTimeBlock {
@@ -153,7 +155,7 @@ fn test_archive() {
         unpacked_size: 2118,
         attributes: 32,
         mtime: 0,
-        data_crc: 2482150091,
+        data_crc: 0xcb9a_f293, // CRC32 of assets/text.txt
         compression,
         creation_os: OsFlags::Windows,
         name_len: 8,
@@ -187,8 +189,10 @@ fn test_archive_png() {
         dictonary: 0,
     };
 
-    let mut file_flag = FileFlags::default();
-    file_flag.crc = true;
+    let file_flag = FileFlags {
+        crc: true,
+        ..Default::default()
+    };
 
     let eab = ExtraAreaBlock {
         file_time: Some(FileTimeBlock {
@@ -207,7 +211,7 @@ fn test_archive_png() {
         unpacked_size: 2149083,
         attributes: 32,
         mtime: 0,
-        data_crc: 2494669946,
+        data_crc: 0x7aa4_b194, // CRC32 of assets/photo.jpg
         compression,
         creation_os: OsFlags::Windows,
         name_len: 9,
@@ -286,36 +290,34 @@ impl Compression {
         // get the vint
         let (inp, raw) = vint(inp)?;
 
-        // split it back to an u8 array
-        let clean = &split_u64(raw)[..];
+        // RAR5 compression information:
+        // bits 0-5: algorithm version (0 = RAR 5.0)
+        // bit 6: solid flag (file uses the dictionary of the previous file)
+        // bits 7-9: method (0 = Save, 1 = Fastest ... 5 = Best)
+        // bits 10-14: dictionary size, 128 KB * 2^N
+        let version = (raw & 0x3f) as u8;
+        let solid = (raw & 0x40) != 0;
+        let method = ((raw >> 7) & 0x07) as u8;
+        let dict = ((raw >> 10) & 0x1f) as u8;
 
-        // get the data from the compression
-        // !!!!!! THIS IS PROBABLY WRONG !!!!!!
-        let c = if !clean.is_empty() {
-            let byte = clean[0];
-            Ok((
-                &clean[1..],
-                Compression {
-                    version: (byte >> 2) & 0x3F,
-                    solid: to_bool((byte >> 1) & 0x01),
-                    flag: ((byte >> 4) & 0x0F).into(),
-                    dictonary: byte & 0x0F,
-                },
-            ))
-        } else {
-            Err(nom::Err::Error(nom::error::Error::new(inp, ErrorKind::Eof)))
+        let compression = Compression {
+            version,
+            solid,
+            flag: method.into(),
+            dictonary: dict,
         };
 
-        // change the error to an inp error and not and bit matchign error
-        let c = c.map_err(|_| nom::Err::Error(nom::error::Error::new(inp, ErrorKind::Verify)))?;
-
-        // return the compression
-        Ok((inp, c.1))
+        Ok((inp, compression))
     }
 
     /// Return the dictonary in the right format
     pub fn get_directonary(&self) -> u32 {
-        128 * (self.dictonary as f32).exp2() as u32
+        u32::try_from(self.dictionary_size() / 1024).unwrap_or(u32::MAX)
+    }
+
+    /// Dictionary size in bytes (128 KB * 2^N)
+    pub(crate) fn dictionary_size(&self) -> u64 {
+        0x2_0000u64 << self.dictonary
     }
 }
 
@@ -333,6 +335,30 @@ fn test_get_compression() {
         Ok((&[0x00][..], c))
     );
     assert!(Compression::parse(&[0x80]).is_err());
+}
+#[test]
+fn test_parse_compression_fields() {
+    // -m3, solid, 32 MB dictionary: 0x40 | 3 << 7 | 8 << 10 = 0x21c0
+    let c = Compression::parse(&[0xc0, 0x43]).unwrap().1;
+    assert_eq!(
+        c,
+        Compression {
+            version: 0,
+            solid: true,
+            flag: CompressionFlags::Normal,
+            dictonary: 8,
+        }
+    );
+    assert_eq!(c.get_directonary(), 32 * 1024);
+    assert_eq!(c.dictionary_size(), 32 << 20);
+
+    // RAR 7.0 format, -m5, 128 GB dictionary: 1 | 5 << 7 | 20 << 10 = 0x5281
+    let c = Compression::parse(&[0x81, 0xa5, 0x01]).unwrap().1;
+    assert_eq!(
+        (c.version, c.solid, c.flag),
+        (1, false, CompressionFlags::Best)
+    );
+    assert_eq!(c.dictionary_size(), 128 << 30);
 }
 #[test]
 fn test_get_directonary() {
@@ -353,7 +379,7 @@ fn test_get_directonary() {
 }
 
 /// Compression Flags
-#[derive(PartialEq, Debug, Clone, Default)]
+#[derive(PartialEq, Debug, Clone, Copy, Default)]
 pub enum CompressionFlags {
     Save,
     Fastest,
