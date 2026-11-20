@@ -47,6 +47,14 @@ pub enum RarError {
         actual: u32,
     },
 
+    /// The archive encrypts its headers (`rar -hp`), which isn't supported.
+    #[error("Archives with encrypted headers aren't supported")]
+    EncryptedHeaders,
+
+    /// A header is damaged or its checksum doesn't match.
+    #[error("Corrupt archive header")]
+    CorruptHeader,
+
     /// The file name is absolute or leaves the target directory.
     #[error("Unsafe file name in archive: {filename}")]
     UnsafeFileName { filename: String },

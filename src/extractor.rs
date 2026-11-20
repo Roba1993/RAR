@@ -194,7 +194,7 @@ pub fn continue_data_next_file<'a>(
 
 /// The name of the volume after volume `number` (1 based) of a multi-volume
 /// archive named `name.partN.rar`, keeping the zero padding of `N`.
-fn next_volume_name(name: &str, number: usize) -> Option<String> {
+pub(crate) fn next_volume_name(name: &str, number: usize) -> Option<String> {
     let lower = name.to_ascii_lowercase();
     let stem = lower.strip_suffix(".rar")?;
     let digits = stem.bytes().rev().take_while(u8::is_ascii_digit).count();

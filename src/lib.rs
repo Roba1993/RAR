@@ -21,12 +21,14 @@ mod file_block;
 mod file_writer;
 mod head_block;
 mod rar_reader;
+mod reader;
 mod sig_block;
 mod util;
 mod vint;
 
 use crate::error::{RarError, Result};
 use rar_reader::RarReader;
+pub use reader::{ArchiveReader, Entry, EntryReader};
 use std::fs::File;
 use std::io::Read;
 

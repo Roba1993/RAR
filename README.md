@@ -17,6 +17,38 @@ let archive = rar::Archive::extract_all(
 println!("Result: {:?}", archive);
 ```
 
+To read single files without extracting the archive, open it with
+`ArchiveReader`. Only the headers are read; every file can then be read with
+a reader that implements `Read` and `Seek`:
+```rust
+use std::io::{Read, Seek, SeekFrom};
+
+let archive = rar::ArchiveReader::open("assets/rar5-save-32mb-txt-png-pw-test.rar", "test")?;
+for entry in archive.entries() {
+    println!("{} ({} bytes)", entry.name(), entry.size());
+}
+
+// read 1 KB at offset 1 MB
+let mut reader = archive.reader_by_name("photo.jpg")?;
+reader.seek(SeekFrom::Start(1024 * 1024))?;
+let mut buf = vec![0; 1024];
+reader.read_exact(&mut buf)?;
+```
+
+- Stored files (`-m0`) support random access, also when they're encrypted
+  or split over several volumes.
+- Compressed files are decompressed as a stream. Seeking forward decodes the
+  data in between, seeking backward starts the file over. In a solid archive
+  the compressed files before the file are decoded first.
+- A file read completely from the start has its checksum verified.
+
+## Unreleased
+New:
+- `ArchiveReader` lists an archive from its headers and reads single files
+  with `Read + Seek`, with random access for stored files (also encrypted and
+  multi-volume) and streaming for compressed files
+- New `RarError` variants `EncryptedHeaders` and `CorruptHeader`
+
 ## Version 0.6.0
 New:
 - RAR5 decompression (algorithm version 5.0) for all methods, FASTEST through BEST
@@ -55,6 +87,7 @@ Changed (breaking):
 - [x] Extract compression BEST
 - [x] Extract solid archive
 - [x] Extract directories
+- [x] Read single files with random access (stored) or as a stream (compressed)
 - [ ] Extract symbolic and hard links
 - [ ] Extract archive with encrypted headers (`-hp`)
 - [ ] Extract archive with recovery record
