@@ -21,6 +21,7 @@ fn test_get_bit_at() {
 ///
 /// This is usefull if you need to have bytes again out of an
 /// vint
+#[allow(dead_code)]
 pub fn split_u64(x: u64) -> [u8; 8] {
     let b1: u8 = ((x >> 56) & 0xff) as u8;
     let b2: u8 = ((x >> 48) & 0xff) as u8;

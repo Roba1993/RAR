@@ -29,12 +29,18 @@ impl ExtraAreaBlock {
         while !inp.is_empty() {
             let (i, size) = vint::vint(inp)?;
             let (i, typ) = vint::vint(i)?;
-            let (i, data) = take(size - 1)(i)?;
+            // the size covers the type field, which is at least one byte
+            let data_size = size.checked_sub(1).ok_or_else(|| {
+                nom::Err::Error(nom::error::Error::new(inp, nom::error::ErrorKind::Verify))
+            })?;
+            let (i, data) = take(data_size)(i)?;
             inp = i;
 
             // based upon the block type use the right parser
             match typ {
-                0x01 => eab.file_encryption = FileEncryptionBlock::parse(data).ok().map(|i| i.1),
+                // an unusable encryption record must not be ignored,
+                // otherwise the encrypted data would be written out as is
+                0x01 => eab.file_encryption = Some(FileEncryptionBlock::parse(data)?.1),
                 0x03 => eab.file_time = FileTimeBlock::parse(data).ok().map(|i| i.1),
                 _ => {}
             }
@@ -82,20 +88,23 @@ fn test_parse_extra_area_multi() {
         access_time: None,
     };
 
-    let mut febf = FileEncryptionBlockFlags::default();
-    febf.pw_check_data = true;
-    febf.tweaked_crc = true;
+    let febf = FileEncryptionBlockFlags {
+        pw_check_data: true,
+        tweaked_crc: true,
+    };
 
-    let mut feb = FileEncryptionBlock::default();
-    feb.flags = febf;
-    feb.kdf_count = 15;
-    feb.salt = [
-        145, 54, 92, 222, 142, 142, 13, 19, 255, 186, 128, 233, 43, 95, 8, 74,
-    ];
-    feb.init = [
-        141, 80, 55, 232, 205, 190, 86, 123, 202, 195, 252, 119, 133, 39, 123, 186,
-    ];
-    feb.pw_check = [8, 242, 216, 179, 32, 113, 132, 82, 146, 25, 86, 17];
+    let feb = FileEncryptionBlock {
+        flags: febf,
+        kdf_count: 15,
+        salt: [
+            145, 54, 92, 222, 142, 142, 13, 19, 255, 186, 128, 233, 43, 95, 8, 74,
+        ],
+        init: [
+            141, 80, 55, 232, 205, 190, 86, 123, 202, 195, 252, 119, 133, 39, 123, 186,
+        ],
+        pw_check: [8, 242, 216, 179, 32, 113, 132, 82, 146, 25, 86, 17],
+        ..Default::default()
+    };
 
     let eab = ExtraAreaBlock {
         file_time: Some(ftb),
@@ -165,8 +174,9 @@ impl FileTimeBlock {
         } else {
             let (input, data) = take(8usize)(input)?;
             let (_, t) = le_u64(data)?;
-            let t = (t / 10000000) - 11644473600;
-            let t = DateTime::from_timestamp(t as i64, 0).map(|dt| dt.naive_utc());
+            // 100 ns intervals since 1601-01-01
+            let t = (t / 10_000_000) as i64 - 11_644_473_600;
+            let t = DateTime::from_timestamp(t, 0).map(|dt| dt.naive_utc());
             Ok((input, t))
         }
     }
@@ -198,6 +208,9 @@ fn test_convert_time() {
     );
 }
 
+/// Largest KDF count accepted by RAR (2^24 PBKDF2 iterations).
+const MAX_KDF_COUNT: u8 = 24;
+
 /// File Encryption Block which gives the necessary
 /// Information about the encrypted file.
 #[derive(PartialEq, Debug, Clone, Default)]
@@ -216,8 +229,14 @@ impl FileEncryptionBlock {
         let (inp, version) = FileEncryptionVersion::parse(input)?;
         // Parse flags
         let (inp, flags) = FileEncryptionBlockFlags::parse(inp)?;
-        // parse kdf count
+        // parse kdf count, the binary logarithm of the PBKDF2 iterations
         let (inp, kdf_count) = take(1usize)(inp)?;
+        if kdf_count[0] > MAX_KDF_COUNT {
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Verify,
+            )));
+        }
         // parse salt value
         let (inp, salt) = take(16usize)(inp)?;
         // parse init value
@@ -255,20 +274,23 @@ fn test_file_encryption_parse() {
         0x11,
     ];
 
-    let mut febf = FileEncryptionBlockFlags::default();
-    febf.pw_check_data = true;
-    febf.tweaked_crc = true;
+    let febf = FileEncryptionBlockFlags {
+        pw_check_data: true,
+        tweaked_crc: true,
+    };
 
-    let mut feb = FileEncryptionBlock::default();
-    feb.flags = febf;
-    feb.kdf_count = 15;
-    feb.salt = [
-        145, 54, 92, 222, 142, 142, 13, 19, 255, 186, 128, 233, 43, 95, 8, 74,
-    ];
-    feb.init = [
-        141, 80, 55, 232, 205, 190, 86, 123, 202, 195, 252, 119, 133, 39, 123, 186,
-    ];
-    feb.pw_check = [8, 242, 216, 179, 32, 113, 132, 82, 146, 25, 86, 17];
+    let feb = FileEncryptionBlock {
+        flags: febf,
+        kdf_count: 15,
+        salt: [
+            145, 54, 92, 222, 142, 142, 13, 19, 255, 186, 128, 233, 43, 95, 8, 74,
+        ],
+        init: [
+            141, 80, 55, 232, 205, 190, 86, 123, 202, 195, 252, 119, 133, 39, 123, 186,
+        ],
+        pw_check: [8, 242, 216, 179, 32, 113, 132, 82, 146, 25, 86, 17],
+        ..Default::default()
+    };
 
     assert_eq!(FileEncryptionBlock::parse(&data), Ok((&[][..], feb)));
 }
@@ -297,8 +319,11 @@ impl FileEncryptionVersion {
 /// about how the decrypt the file
 #[derive(PartialEq, Debug, Clone, Default)]
 pub struct FileEncryptionBlockFlags {
-    pw_check_data: bool,
-    tweaked_crc: bool,
+    /// The record contains a value to verify the password.
+    pub pw_check_data: bool,
+    /// The stored checksums are converted with the key (HMAC), so they don't
+    /// reveal anything about the unencrypted data.
+    pub tweaked_crc: bool,
 }
 
 impl FileEncryptionBlockFlags {
@@ -313,4 +338,23 @@ impl FileEncryptionBlockFlags {
 
         Ok((inp, febf))
     }
+}
+
+#[test]
+fn test_extra_area_zero_size_is_an_error() {
+    assert!(ExtraAreaBlock::parse(&[0x00, 0x01]).is_err());
+}
+
+#[test]
+fn test_windows_time_before_1970() {
+    // 1601-01-01 must not overflow
+    let t = FileTimeBlock::parse_timestamp(&[0; 8], false).unwrap().1;
+    assert_eq!(t.unwrap().format("%Y").to_string(), "1601");
+}
+
+#[test]
+fn test_kdf_count_too_large() {
+    let mut data = vec![0x00, 0x00, MAX_KDF_COUNT + 1];
+    data.extend_from_slice(&[0; 32]);
+    assert!(FileEncryptionBlock::parse(&data).is_err());
 }
